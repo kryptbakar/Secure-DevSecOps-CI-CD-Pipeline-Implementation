@@ -142,7 +142,7 @@ Result: 0 ROWS (injection blocked, treated as literal string)
 - Shows bound parameters separately
 - Explains why injection is impossible
 
-**Key Learning:**
+**Key Learning:** 
 > Parameterized queries escape special characters, making injection impossible.
 
 ---
