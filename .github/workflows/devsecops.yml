@@ -35,7 +35,7 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY || 'ci-test-secret-key' }}
           SECURE_MODE: "true"
         run: |
-          pytest tests/ -v --tb=short 2>&1
+          pytest "deliverable 2/tests/" -v --tb=short 2>&1
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 2. SECRET SCANNING (gitleaks)
@@ -80,9 +80,9 @@ jobs:
       - name: Run Bandit
         run: |
           # Full scan (all severities) → JSON for HTML report
-          bandit -r app/ -l -i --format json -o bandit-report.json || true
+          bandit -r "deliverable 2/app/" -l -i --format json -o bandit-report.json || true
           # Strict scan (HIGH/HIGH only) → CI gate
-          bandit -r app/ -ll -ii || EXIT_CODE=$?
+          bandit -r "deliverable 2/app/" -ll -ii || EXIT_CODE=$?
           exit ${EXIT_CODE:-0}
 
       - name: Generate Bandit HTML report
@@ -113,7 +113,7 @@ jobs:
           for r in results:
               sev  = r['issue_severity']
               conf = r['issue_confidence']
-              fname = r.get('filename','').replace('app/','').replace('app\\','')
+              fname = r.get('filename','').replace('deliverable 2/app/','').replace('deliverable 2\\app\\','').replace('app/','').replace('app\\','')
               cwe = r.get('issue_cwe', {})
               cwe_link = (f'<a href="{cwe.get("link","")}" target="_blank" style="color:#58a6ff">'
                           f'CWE-{cwe.get("id","")}</a>' if cwe else '-')
@@ -418,7 +418,7 @@ jobs:
 
           # Start Flask app in background
           SECRET_KEY="dast-scan-secret" SECURE_MODE="true" \
-            python -m flask --app "app.main:create_app" run --host 0.0.0.0 --port 5000 > app.log 2>&1 &
+            python -m flask --app "deliverable 2/app.main:create_app" run --host 0.0.0.0 --port 5000 > app.log 2>&1 &
           APP_PID=$!
           echo "App PID: $APP_PID"
 
