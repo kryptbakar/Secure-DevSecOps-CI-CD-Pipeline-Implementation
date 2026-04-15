@@ -1,0 +1,21 @@
+# Virtual environments
+.venv/
+.venv*/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases
+*.db
+*.sqlite3
+
+# Development tools
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
