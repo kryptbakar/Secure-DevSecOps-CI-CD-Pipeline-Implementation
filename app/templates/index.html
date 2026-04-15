@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevSecOps Demo - Item Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .auth-section {
+            display: none;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .auth-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        .items-section {
+            display: none;
+        }
+
+        .items-section.active {
+            display: block;
+        }
+
+        .user-info {
+            background: #e7f3ff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info span {
+            color: #0066cc;
+            font-weight: 600;
+        }
+
+        .item-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .item-form h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .items-list {
+            margin-top: 20px;
+        }
+
+        .items-list h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .item-body {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .item-date {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .item-actions button {
+            padding: 8px 12px;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-box input {
+            flex: 1;
+        }
+
+        .search-box button {
+            margin: 0;
+        }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-items {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .item-actions {
+                width: 100%;
+                margin-top: 10px;
+            }
+
+            .user-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 DevSecOps Demo App</h1>
+            <p>Secure Software Development - CI/CD Pipeline with Automated Security Scanning</p>
+        </div>
+
+        <div id="alertBox"></div>
+
+        <!-- Auth Section -->
+        <div id="authSection" class="auth-section active">
+            <div id="registerForm">
+                <h2 style="margin-bottom: 20px; color: #333;">Create Account</h2>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="registerUsername" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="registerPassword" placeholder="Enter password">
+                </div>
+                <button onclick="register()">Register</button>
+                <button class="secondary" onclick="toggleForm()">Already have an account? Login</button>
+            </div>
+
+            <div id="loginForm" style="display: none;">
+                <h2 style="margin-bottom: 20px; color: #333;">Login</h2>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password">
+                </div>
+                <button onclick="login()">Login</button>
+                <button class="secondary" onclick="toggleForm()">Don't have an account? Register</button>
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div id="itemsSection" class="items-section">
+            <div class="user-info">
+                <span id="currentUser"></span>
+                <button class="secondary" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="item-form">
+                <h3>➕ Add New Item</h3>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="itemTitle" placeholder="Enter item title">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="itemBody" placeholder="Enter item description">
+                </div>
+                <button onclick="createItem()">Add Item</button>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchQuery" placeholder="Search items (tests SQL injection vulnerability)...">
+                <button onclick="searchItems()">🔍 Search</button>
+            </div>
+
+            <div class="items-list">
+                <h3>📋 Your Items</h3>
+                <div id="itemsList" class="no-items">Loading items...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:5000';
+        let currentUser = null;
+
+        function showAlert(message, type = 'info') {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.innerHTML = `<div class="alert ${type}">${message}</div>`;
+            setTimeout(() => {
+                alertBox.innerHTML = '';
+            }, 3000);
+        }
+
+        function toggleForm() {
+            document.getElementById('registerForm').style.display = 
+                document.getElementById('registerForm').style.display === 'none' ? 'block' : 'none';
+            document.getElementById('loginForm').style.display = 
+                document.getElementById('loginForm').style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function register() {
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+
+            if (!username || !password) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showAlert('Account created! Now login.', 'success');
+                    document.getElementById('registerUsername').value = '';
+                    document.getElementById('registerPassword').value = '';
+                    toggleForm();
+                } else {
+                    showAlert(data.error || 'Registration failed', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentUser = data.user.username;
+                    showAlert('Login successful!', 'success');
+                    document.getElementById('authSection').classList.remove('active');
+                    document.getElementById('itemsSection').classList.add('active');
+                    document.getElementById('currentUser').textContent = `👤 Logged in as: ${currentUser}`;
+                    document.getElementById('loginUsername').value = '';
+                    document.getElementById('loginPassword').value = '';
+                    loadItems();
+                } else {
+                    showAlert(data.error || 'Login failed', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                currentUser = null;
+                document.getElementById('itemsSection').classList.remove('active');
+                document.getElementById('authSection').classList.add('active');
+                document.getElementById('itemTitle').value = '';
+                document.getElementById('itemBody').value = '';
+                showAlert('Logged out successfully', 'success');
+            } catch (err) {
+                showAlert('Logout error: ' + err.message, 'error');
+            }
+        }
+
+        async function createItem() {
+            const title = document.getElementById('itemTitle').value.trim();
+            const body = document.getElementById('itemBody').value.trim();
+
+            if (!title) {
+                showAlert('Title is required', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ title, body })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showAlert('Item created successfully!', 'success');
+                    document.getElementById('itemTitle').value = '';
+                    document.getElementById('itemBody').value = '';
+                    loadItems();
+                } else {
+                    showAlert(data.error || 'Failed to create item', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function loadItems() {
+            try {
+                const res = await fetch(`${API_BASE}/items`, {
+                    credentials: 'include'
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    const items = data.items;
+                    const itemsList = document.getElementById('itemsList');
+
+                    if (items.length === 0) {
+                        itemsList.innerHTML = '<div class="no-items">No items yet. Create one above!</div>';
+                    } else {
+                        itemsList.innerHTML = items.map(item => `
+                            <div class="item">
+                                <div class="item-content">
+                                    <div class="item-title">${escapeHtml(item.title)}</div>
+                                    <div class="item-body">${escapeHtml(item.body || '(no description)')}</div>
+                                    <div class="item-date">${new Date(item.created_at).toLocaleString()}</div>
+                                </div>
+                                <div class="item-actions">
+                                    <button class="danger" onclick="deleteItem(${item.id})">Delete</button>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    showAlert(data.error || 'Failed to load items', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteItem(itemId) {
+            if (!confirm('Delete this item?')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/items/${itemId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    showAlert('Item deleted!', 'success');
+                    loadItems();
+                } else {
+                    const data = await res.json();
+                    showAlert(data.error || 'Failed to delete item', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function searchItems() {
+            const q = document.getElementById('searchQuery').value.trim();
+
+            if (!q) {
+                showAlert('Enter a search term', 'warning');
+                return;
+            }
+
+            showAlert('⚠️ Demo: This uses the intentionally insecure SQL search endpoint to demonstrate injection risks!', 'warning');
+
+            try {
+                const res = await fetch(`${API_BASE}/items/search?q=${encodeURIComponent(q)}`, {
+                    credentials: 'include'
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    const items = data.items;
+                    const itemsList = document.getElementById('itemsList');
+
+                    if (items.length === 0) {
+                        itemsList.innerHTML = '<div class="no-items">No items found matching your search.</div>';
+                    } else {
+                        itemsList.innerHTML = items.map(item => `
+                            <div class="item">
+                                <div class="item-content">
+                                    <div class="item-title">${escapeHtml(item.title)}</div>
+                                    <div class="item-body">${escapeHtml(item.body || '(no description)')}</div>
+                                    <div class="item-date">${new Date(item.created_at).toLocaleString()}</div>
+                                </div>
+                                <div class="item-actions">
+                                    <button class="danger" onclick="deleteItem(${item.id})">Delete</button>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    showAlert(`Search results: ${items.length} item(s) found`, 'success');
+                } else {
+                    showAlert(data.error || 'Search failed', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
