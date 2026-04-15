@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard — DevSecOps Demo</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+            background: #1e293b; border-right: 1px solid #334155; padding: 24px 0;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid #334155; }
+        .sidebar-logo h2 { font-size: 15px; color: #f1f5f9; }
+        .sidebar-logo p  { font-size: 11px; color: #64748b; margin-top: 3px; }
+        .nav-item {
+            padding: 10px 20px; font-size: 13px; color: #94a3b8; cursor: pointer;
+            border-left: 3px solid transparent; transition: all .2s; display: flex; align-items: center; gap: 8px;
+        }
+        .nav-item:hover, .nav-item.active { background: #0f172a; color: #e2e8f0; border-left-color: #3b82f6; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid #334155; }
+
+        /* Main */
+        .main { margin-left: 220px; padding: 28px; }
+
+        /* Page header */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px;
+        }
+        .page-header h1 { font-size: 22px; color: #f1f5f9; }
+        .page-header p  { font-size: 13px; color: #64748b; margin-top: 3px; }
+
+        /* Stat cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #1e293b; border-radius: 8px; padding: 18px;
+            border: 1px solid #334155;
+        }
+        .stat-card .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+        .stat-card .sub   { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .stat-card.red    .value { color: #ef4444; }
+        .stat-card.yellow .value { color: #f59e0b; }
+        .stat-card.green  .value { color: #22c55e; }
+        .stat-card.blue   .value { color: #3b82f6; }
+
+        /* Panels */
+        .panel {
+            background: #1e293b; border-radius: 8px; border: 1px solid #334155;
+            margin-bottom: 20px; overflow: hidden;
+        }
+        .panel-header {
+            padding: 14px 20px; border-bottom: 1px solid #334155;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .panel-header h3 { font-size: 14px; color: #f1f5f9; }
+        .panel-body { padding: 0; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { padding: 10px 16px; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid #334155; }
+        td { padding: 10px 16px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #0f172a; }
+
+        /* Badges */
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 20px;
+            font-size: 10px; font-weight: 700;
+        }
+        .badge.success { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+        .badge.danger  { background: #450a0a; color: #f87171; border: 1px solid #991b1b; }
+        .badge.warning { background: #422006; color: #fbbf24; border: 1px solid #92400e; }
+        .badge.info    { background: #0c1a4b; color: #93c5fd; border: 1px solid #1e40af; }
+        .badge.admin   { background: #422006; color: #fbbf24; }
+        .badge.user    { background: #0c1a4b; color: #93c5fd; }
+
+        /* Alert */
+        .alert {
+            padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px;
+        }
+        .alert.error   { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+        .alert.success { background: #052e16; color: #4ade80; border: 1px solid #14532d; }
+
+        /* Buttons */
+        button {
+            padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer;
+            font-size: 12px; font-weight: 600; transition: all .2s;
+        }
+        .btn-danger   { background: #7f1d1d; color: #fca5a5; }
+        .btn-danger:hover { background: #991b1b; }
+        .btn-success  { background: #14532d; color: #86efac; }
+        .btn-success:hover { background: #166534; }
+        .btn-primary  { background: #1e3a8a; color: #93c5fd; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-warning  { background: #78350f; color: #fde68a; }
+        .btn-warning:hover { background: #92400e; }
+
+        /* Mono */
+        code { font-family: 'Courier New', monospace; background: #0f172a; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+        /* Loading */
+        .loading { text-align: center; padding: 40px; color: #64748b; font-size: 13px; }
+
+        /* Section panels */
+        .section-content { display: none; }
+        .section-content.active { display: block; }
+
+        @media(max-width:768px){
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="sidebar-logo">
+        <h2>&#128202; Security Dashboard</h2>
+        <p>DevSecOps Demo — Admin</p>
+    </div>
+    <div class="nav-item active" onclick="showSection('overview')">&#128200; Overview</div>
+    <div class="nav-item" onclick="showSection('logins')">&#128274; Login Events</div>
+    <div class="nav-item" onclick="showSection('lockouts')">&#128683; Lockouts</div>
+    <div class="nav-item" onclick="showSection('users')">&#128100; Users</div>
+    <div class="nav-item" onclick="showSection('apikeys')">&#128273; API Keys</div>
+    <div class="nav-item" onclick="showSection('audit')">&#128221; Audit Log</div>
+    <div class="sidebar-footer">
+        <a href="/" style="color:#64748b;font-size:12px;text-decoration:none">&#8592; Back to App</a>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="page-header">
+        <div>
+            <h1>Security Dashboard</h1>
+            <p id="lastRefresh">Loading…</p>
+        </div>
+        <button class="btn-primary" onclick="loadData()">&#8635; Refresh</button>
+    </div>
+
+    <div id="alertBox"></div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <div id="section-overview" class="section-content active">
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card blue"><div class="label">Total Users</div><div class="value" id="statUsers">—</div></div>
+            <div class="stat-card red"><div class="label">Failed Logins (24h)</div><div class="value" id="statFailed">—</div></div>
+            <div class="stat-card yellow"><div class="label">Locked Accounts</div><div class="value" id="statLocked">—</div></div>
+            <div class="stat-card green"><div class="label">Active API Keys</div><div class="value" id="statKeys">—</div></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header"><h3>&#9888; Security Events (Last 7 Days)</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Event Type</th><th>Count</th><th>Severity</th></tr></thead>
+                    <tbody id="vulnStats"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header"><h3>&#128274; Recent Login Activity</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Username</th><th>Action</th><th>IP</th><th>Time</th><th>Status</th></tr></thead>
+                    <tbody id="recentLogins"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== LOGIN EVENTS ===== -->
+    <div id="section-logins" class="section-content">
+        <div class="panel">
+            <div class="panel-header"><h3>&#128274; Failed Login Attempts (24h — Top Users)</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Username</th><th>Attempts</th><th>Last Attempt</th></tr></thead>
+                    <tbody id="failedStats"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== LOCKOUTS ===== -->
+    <div id="section-lockouts" class="section-content">
+        <div class="panel">
+            <div class="panel-header"><h3>&#128683; Currently Locked Accounts</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Username</th><th>Attempts</th><th>Locked Until</th><th>Action</th></tr></thead>
+                    <tbody id="lockedAccounts"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== USERS ===== -->
+    <div id="section-users" class="section-content">
+        <div class="panel">
+            <div class="panel-header"><h3>&#128100; User Management</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+                    <tbody id="usersTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== API KEYS ===== -->
+    <div id="section-apikeys" class="section-content">
+        <div class="panel">
+            <div class="panel-header"><h3>&#128273; API Key Usage</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Prefix</th><th>Name</th><th>Owner</th><th>Last Used</th><th>Status</th></tr></thead>
+                    <tbody id="apiKeyUsage"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== AUDIT LOG ===== -->
+    <div id="section-audit" class="section-content">
+        <div class="panel">
+            <div class="panel-header"><h3>&#128221; Audit Log (Last 100 Events)</h3></div>
+            <div class="panel-body">
+                <table>
+                    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Resource</th><th>IP</th><th>Status</th></tr></thead>
+                    <tbody id="auditLog"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script nonce="{{ csp_nonce }}">
+let dashData = null;
+
+/* Navigation */
+function showSection(name) {
+    document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('section-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+function fmtTime(ts) {
+    return ts ? new Date(ts).toLocaleString() : '—';
+}
+
+/* ====== Load data ====== */
+async function loadData() {
+    document.getElementById('lastRefresh').textContent = 'Refreshing…';
+    try {
+        const res = await fetch('/dashboard/security', { credentials: 'include' });
+        if (res.status === 401) { window.location = '/'; return; }
+        if (res.status === 403) {
+            document.getElementById('alertBox').innerHTML =
+                '<div class="alert error">Access denied — admin role required.</div>';
+            return;
+        }
+        dashData = await res.json();
+        renderAll();
+        document.getElementById('lastRefresh').textContent =
+            'Last refresh: ' + new Date().toLocaleTimeString();
+    } catch(e) {
+        document.getElementById('alertBox').innerHTML =
+            `<div class="alert error">Failed to load data: ${esc(e.message)}</div>`;
+    }
+}
+
+function renderAll() {
+    const d = dashData;
+
+    /* Stats */
+    document.getElementById('statUsers').textContent  = d.users.length;
+    document.getElementById('statFailed').textContent = d.failed_login_stats_24h.reduce((s,r) => s + r.count, 0);
+    document.getElementById('statLocked').textContent = d.locked_accounts.length;
+    document.getElementById('statKeys').textContent   = d.api_key_usage.filter(k => k.is_active).length;
+
+    /* Vuln stats */
+    const sev = { LOGIN_FAILED:'danger', LOGIN_BLOCKED:'danger', ACCESS_DENIED:'warning', API_KEY_AUTH_FAILED:'warning', CSRF_VIOLATION:'danger' };
+    document.getElementById('vulnStats').innerHTML = d.vulnerability_stats_7d.length
+        ? d.vulnerability_stats_7d.map(r => `<tr>
+                <td><code>${esc(r.action)}</code></td>
+                <td><strong>${r.count}</strong></td>
+                <td><span class="badge ${sev[r.action]||'info'}">${sev[r.action]||'info'}</span></td>
+            </tr>`).join('')
+        : '<tr><td colspan="3" style="color:#64748b;text-align:center;padding:20px">No security events in last 7 days</td></tr>';
+
+    /* Recent logins */
+    document.getElementById('recentLogins').innerHTML = d.recent_logins
+        .map(r => `<tr>
+            <td>${esc(r.username)}</td>
+            <td><code>${esc(r.action)}</code></td>
+            <td>${esc(r.ip_address)}</td>
+            <td>${fmtTime(r.timestamp)}</td>
+            <td><span class="badge ${r.success ? 'success' : 'danger'}">${r.success ? 'OK' : 'FAIL'}</span></td>
+        </tr>`).join('') || '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:20px">No events</td></tr>';
+
+    /* Failed login stats */
+    document.getElementById('failedStats').innerHTML = d.failed_login_stats_24h
+        .map(r => `<tr>
+            <td>${esc(r.username)}</td>
+            <td><strong style="color:#ef4444">${r.count}</strong></td>
+            <td>${fmtTime(r.last_attempt)}</td>
+        </tr>`).join('') || '<tr><td colspan="3" style="color:#64748b;text-align:center;padding:20px">No failures in last 24h</td></tr>';
+
+    /* Locked accounts */
+    document.getElementById('lockedAccounts').innerHTML = d.locked_accounts
+        .map(r => `<tr>
+            <td>${esc(r.username)}</td>
+            <td>${r.failed_attempts}</td>
+            <td>${fmtTime(r.locked_until)}</td>
+            <td><button class="btn-success" onclick="clearLockout('${esc(r.username)}')">Unlock</button></td>
+        </tr>`).join('') || '<tr><td colspan="4" style="color:#64748b;text-align:center;padding:20px">No locked accounts</td></tr>';
+
+    /* Users */
+    document.getElementById('usersTable').innerHTML = d.users.map(u => `<tr>
+        <td>${u.id}</td>
+        <td>${esc(u.username)}</td>
+        <td><span class="badge ${u.role}">${esc(u.role)}</span></td>
+        <td><span class="badge ${u.is_active ? 'success' : 'danger'}">${u.is_active ? 'Active' : 'Disabled'}</span></td>
+        <td>${fmtTime(u.last_login)}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+            ${u.is_active
+                ? `<button class="btn-danger" onclick="toggleUser(${u.id},false)">Disable</button>`
+                : `<button class="btn-success" onclick="toggleUser(${u.id},true)">Enable</button>`}
+            ${u.role==='user'
+                ? `<button class="btn-warning" onclick="setRole(${u.id},'admin')">Make Admin</button>`
+                : `<button class="btn-primary" onclick="setRole(${u.id},'user')">Make User</button>`}
+        </td>
+    </tr>`).join('');
+
+    /* API key usage */
+    document.getElementById('apiKeyUsage').innerHTML = d.api_key_usage
+        .map(k => `<tr>
+            <td><code>${esc(k.key_prefix)}…</code></td>
+            <td>${esc(k.name||'—')}</td>
+            <td>${esc(k.username)}</td>
+            <td>${fmtTime(k.last_used)}</td>
+            <td><span class="badge ${k.is_active ? 'success' : 'danger'}">${k.is_active ? 'Active' : 'Revoked'}</span></td>
+        </tr>`).join('') || '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:20px">No API keys</td></tr>';
+
+    /* Audit log */
+    document.getElementById('auditLog').innerHTML = d.recent_audit_log
+        .map(r => `<tr>
+            <td>${fmtTime(r.timestamp)}</td>
+            <td>${esc(r.username||'—')}</td>
+            <td><code>${esc(r.action)}</code></td>
+            <td>${esc(r.resource||'—')}</td>
+            <td>${esc(r.ip_address||'—')}</td>
+            <td><span class="badge ${r.success ? 'success' : 'danger'}">${r.success ? 'OK' : 'FAIL'}</span></td>
+        </tr>`).join('') || '<tr><td colspan="6" style="color:#64748b;text-align:center;padding:20px">No events</td></tr>';
+}
+
+/* ====== Actions ====== */
+async function clearLockout(username) {
+    if (!confirm(`Unlock account: ${username}?`)) return;
+    const r = await fetch(`/dashboard/lockouts/${encodeURIComponent(username)}`, {
+        method: 'DELETE', credentials: 'include'
+    });
+    if (r.ok) { showMsg('Account unlocked.', 'success'); loadData(); }
+    else showMsg('Failed to unlock.', 'error');
+}
+
+async function toggleUser(id, activate) {
+    const path = activate ? 'activate' : 'deactivate';
+    const r = await fetch(`/dashboard/users/${id}/${path}`, { method: 'POST', credentials: 'include' });
+    if (r.ok) { showMsg(`User ${activate ? 'activated' : 'deactivated'}.`, 'success'); loadData(); }
+    else showMsg('Action failed.', 'error');
+}
+
+async function setRole(id, role) {
+    if (!confirm(`Change role to '${role}' for user ${id}?`)) return;
+    const r = await fetch(`/dashboard/users/${id}/role`, {
+        method: 'POST', credentials: 'include',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ role })
+    });
+    if (r.ok) { showMsg(`Role updated to ${role}.`, 'success'); loadData(); }
+    else showMsg('Failed to update role.', 'error');
+}
+
+function showMsg(msg, type) {
+    const box = document.getElementById('alertBox');
+    box.innerHTML = `<div class="alert ${type}">${msg}</div>`;
+    setTimeout(() => { box.innerHTML = ''; }, 3000);
+}
+
+/* Boot */
+loadData();
+setInterval(loadData, 30000); // auto-refresh every 30s
+</script>
+</body>
+</html>
