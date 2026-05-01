@@ -131,6 +131,94 @@ uses: kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation/.github/workflow
 
 ---
 
+## 9. 🔄 Automated Remediation Loop
+
+This project implements a closed-loop automated remediation cycle using **Dependabot**. Once the pipeline and Dependabot are configured, no manual dependency tracking is required.
+
+### How the loop works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Automated Remediation Loop                  │
+└─────────────────────────────────────────────────────────────┘
+
+  Developer introduces / keeps a vulnerable dependency
+                        │
+                        ▼
+          ┌─────────────────────────┐
+          │   Push / PR to main     │
+          └────────────┬────────────┘
+                       │
+                       ▼
+  ┌────────────────────────────────────────────────────┐
+  │            GitHub Actions Pipeline fires            │
+  │  ┌─────────────────┐  ┌─────────────────┐          │
+  │  │  Bandit (SAST)  │  │   pip-audit     │ ← BLOCKS │
+  │  │  detects flaw   │  │   detects CVE   │ deploy   │
+  │  └─────────────────┘  └─────────────────┘          │
+  │  ┌─────────────────┐                               │
+  │  │    Gitleaks     │ ← BLOCKS on secrets           │
+  │  └─────────────────┘                               │
+  └────────────────────────────────────────────────────┘
+                       │  Pipeline FAILS — artifacts uploaded
+                       │
+                       ▼
+  ┌────────────────────────────────────────────────────┐
+  │  Dependabot (weekly scan) detects same CVE          │
+  │  → Opens a PR:  deps: bump urllib3 1.25.8 → 2.x   │
+  └────────────┬───────────────────────────────────────┘
+               │
+               ▼
+  ┌────────────────────────────────────────────────────┐
+  │  PR triggers pipeline (pull_request event)          │
+  │  Bandit ✅   pip-audit ✅   Gitleaks ✅            │
+  │  All gates PASS on the patched dependency           │
+  └────────────┬───────────────────────────────────────┘
+               │
+               ▼
+  ┌────────────────────────────────────────────────────┐
+  │  Developer merges Dependabot PR to main             │
+  │  Push event → pipeline runs once more               │
+  │  All gates PASS → deployment ALLOWED ✅             │
+  └────────────────────────────────────────────────────┘
+```
+
+**Key properties of this loop:**
+- 🤖 Dependabot **never commits directly to `main`** — it always uses a pull request
+- 🔒 Every PR (including Dependabot's) is gated by the **full 4-job security pipeline**
+- 📁 Security evidence (JSON reports) is **captured as downloadable artifacts** on every run
+- ⚡ The loop is entirely automated — no manual intervention required
+
+---
+
+### 📋 Evidence Checklist (for course report)
+
+Use the items below as evidence that the DevSecOps pipeline is working end-to-end.
+
+#### Artifacts (downloadable from each Actions run)
+
+| Artifact | Tool | What it proves |
+|----------|------|----------------|
+| `bandit-report.json` | Bandit | SAST scan — code-level security findings |
+| `pip-audit-report.json` | pip-audit | SCA scan — CVE matches against `requirements.txt` |
+| `gitleaks-report.json` | Gitleaks | Secrets scan — detected credentials or tokens |
+
+#### Workflow run screenshots to include
+
+- [ ] **Failed pipeline run** — all security jobs red ✗ (urllib3 CVE + hardcoded secrets detected)
+- [ ] **Dependabot PR** — auto-opened PR `deps: bump urllib3 1.25.8 → 2.x` in the Pull Requests tab
+- [ ] **Pipeline on Dependabot PR** — all jobs green ✓ after the dependency is patched
+- [ ] **Artifact download** — `pip-audit-report.json` opened, showing the CVE entry
+- [ ] **Dependabot config active** — `Insights → Dependency graph → Dependabot` tab
+
+#### How to download artifacts
+
+1. Go to **Actions** → select any workflow run
+2. Scroll to the **Artifacts** section at the bottom of the run page
+3. Download `bandit-report`, `pip-audit-report`, and `gitleaks-report`
+
+---
+
 ## 10. 🎉 Conclusion & Key Takeaways
 This project proves the effectiveness of DevSecOps by demonstrating how automated pipelines can enforce strict security policies. 
 

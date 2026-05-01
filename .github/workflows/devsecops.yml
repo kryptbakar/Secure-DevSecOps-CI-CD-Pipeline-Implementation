@@ -7,55 +7,136 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
+
+  # ── Job 1: Build & unit tests ─────────────────────────────────────────────
   build-and-test:
     name: Build & Functional Tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    - name: Test with pytest
-      run: |
-        pytest tests/
+      - uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test with pytest
+        run: pytest tests/
+
+  # ── Job 2: SAST — Bandit ─────────────────────────────────────────────────
   security-sast:
     name: SAST (Bandit)
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install Bandit
-      run: pip install bandit==1.7.5
-    - name: Run Bandit Security Scanner
-      # -r app/ : recursively scan 'app' directory
-      # -ll : only report High severity issues (-lll is critical, -ll is high, -l is medium)
-      # -ii : only report High confidence issues
-      # If Bandit finds High severity issues like hardcoded passwords, it will exit with a non-zero code and fail the build.
-      run: bandit -r app/ -ll
+      - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        run: pip install bandit==1.7.5
+
+      - name: Run Bandit Security Scanner
+        id: bandit
+        # -r app/ : recursively scan the application directory
+        # -ll     : report High severity and above
+        # -ii     : report High confidence and above
+        # -f json : JSON output for the evidence artifact
+        run: bandit -r app/ -ll -ii -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+      - name: Fail pipeline if Bandit found issues
+        if: steps.bandit.outcome == 'failure'
+        run: |
+          echo "Bandit detected high-severity security issues. Deployment blocked."
+          exit 1
+
+  # ── Job 3: SCA — pip-audit ───────────────────────────────────────────────
   security-sca:
-    name: SCA (Dependency Scanner)
+    name: SCA (pip-audit)
     runs-on: ubuntu-latest
     needs: build-and-test
-    # This step is intentionally expected to fail due to urllib3 vulnerability
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install pip-audit
-      run: pip install pip-audit==2.7.0
-    - name: Run pip-audit Vulnerability Scanner
-      # Runs pip-audit against our requirements.txt
-      run: pip-audit -r requirements.txt
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.0
+
+      - name: Run pip-audit Vulnerability Scanner
+        id: pip_audit
+        # urllib3==1.25.8 (CVE-2020-26137) will cause this step to exit 1 — intentional.
+        # Output is JSON so the artifact is machine-readable evidence.
+        run: pip-audit -r requirements.txt --format json > pip-audit-report.json
+        continue-on-error: true
+
+      - name: Upload pip-audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+
+      - name: Fail pipeline if vulnerabilities found
+        if: steps.pip_audit.outcome == 'failure'
+        run: |
+          echo "pip-audit detected vulnerable dependencies. Deployment blocked."
+          exit 1
+
+  # ── Job 4: Secrets Scanning — Gitleaks ───────────────────────────────────
+  secrets-scan:
+    name: Secrets Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
+      - name: Run Gitleaks
+        id: gitleaks
+        run: |
+          gitleaks detect \
+            --source . \
+            --report-path gitleaks-report.json \
+            --report-format json \
+            --exit-code 1
+        continue-on-error: true
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+      - name: Fail pipeline if secrets detected
+        if: steps.gitleaks.outcome == 'failure'
+        run: |
+          echo "Gitleaks detected potential secrets in the repository. Deployment blocked."
+          exit 1
