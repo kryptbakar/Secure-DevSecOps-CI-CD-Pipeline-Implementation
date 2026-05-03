@@ -754,18 +754,23 @@ button{
       <p>Insecure Direct Object References (IDOR) occur when an app uses user-controlled input directly without authorization. The <span style="color:var(--red)">Attack</span> panel shows how to access ANY user. The <span style="color:var(--green)">Defend</span> panel enforces proper access control.</p>
     </div>
 
-    <div class="alert info">ℹ️ Demo Users: ID <strong>1</strong>=alice, <strong>2</strong>=bob, <strong>3</strong>=charlie, <strong>4</strong>=diana. Login as any user and try accessing other users' profiles using the Attack panel!</div>
+    <div class="alert info">ℹ️ Demo Users: ID <strong>1</strong>=alice, <strong>2</strong>=bob, <strong>3</strong>=charlie, <strong>4</strong>=diana. Try SQL injection payloads like <code>' OR '1'='1</code> in the Attack panel!</div>
 
     <div class="split">
       <div class="attack-panel">
-        <div class="panel-hd">⚡ Attack — /users/[id] (Insecure)</div>
+        <div class="panel-hd">⚡ Attack — /users/attack/[payload] (Insecure)</div>
         <div class="panel-body">
           <div class="form-row">
-            <input type="number" id="idorAttackId" placeholder="Enter user ID (1=alice, 2=bob, 3=charlie, 4=diana)" min="1">
-            <button class="btn-attack" onclick="runIDOR('attack')">⚡ Access Profile</button>
+            <input type="text" id="idorAttackPayload" placeholder="Try: 1, 2, 3, 4, or ' OR '1'='1">
+            <button class="btn-attack" onclick="runIDOR('attack')">⚡ Attack</button>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--orange)">/users/[user_id]</code></div>
-          <div class="terminal" id="idorAttackOut">Enter a user ID to access their profile…</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:6px">
+            <strong style="color:var(--orange)">Try these payloads:</strong><br>
+            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value='1'">1</span>
+            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value='2'">2</span>
+            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value=&quot;' OR '1'='1&quot;">' OR '1'='1</span>
+          </div>
+          <div class="terminal" id="idorAttackOut">Enter a payload to test IDOR + SQL Injection…</div>
         </div>
       </div>
 
@@ -775,21 +780,25 @@ button{
           <div style="margin-bottom:8px">
             <button class="btn-defend" onclick="runIDOR('defend')">🛡 Get My Profile</button>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--green)">/users/me</code> (uses session)</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--green)">/users/me</code> (uses session, cannot be exploited)</div>
           <div class="terminal" id="idorDefendOut">Click to retrieve your profile…</div>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-header"><h3>📖 How IDOR Works</h3></div>
+      <div class="card-header"><h3>📖 How IDOR + SQL Injection Works</h3></div>
       <div class="card-body" style="font-size:12px;color:var(--muted);line-height:1.9">
-        <strong style="color:var(--red)">VULNERABLE code</strong> — Uses URL param without authorization check:<br>
-        <code style="display:block;margin:6px 0;padding:8px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);color:var(--orange);">@bp.get("/users/&lt;int:user_id&gt;")  # VULNERABLE: IDOR&#10;user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()&#10;# NO CHECK if session['user_id'] == user_id!</code>
-        Any authenticated user can request <code>/users/2</code> to see User 2's email, phone, address, notes.<br><br>
-        <strong style="color:var(--green)">SECURE code</strong> — Gets user_id from session, not request:<br>
-        <code style="display:block;margin:6px 0;padding:8px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);color:var(--green);">@bp.get("/users/me")  # SECURE: Proper access control&#10;user_id = session.get("user_id")  # From trusted session&#10;user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()&#10;# User can ONLY read their own data</code>
-        The <code>/users/me</code> endpoint cannot be exploited because it always uses the logged-in user's ID from the session.
+        <strong style="color:var(--red)">VULNERABLE code</strong> — String interpolation in SQL (no parameterization, no auth check):<br>
+        <code style="display:block;margin:6px 0;padding:8px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);color:var(--orange);">@bp.get("/users/attack/&lt;path:user_input&gt;")  # VULNERABLE: IDOR + SQLi&#10;sql = f"SELECT * FROM users WHERE id = '{user_input}' OR '1'='1'"&#10;# NO parameterization! user_input goes directly into SQL!</code>
+        Input <code>1</code> returns User 1. Input <code>' OR '1'='1</code> returns ALL users because the SQL becomes:<br>
+        <code style="color:var(--red)">WHERE id = '' OR '1'='1'</code> — always true!<br><br>
+        <strong style="color:var(--green)">SECURE code</strong> — Parameterized query + session-based auth:<br>
+        <code style="display:block;margin:6px 0;padding:8px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);color:var(--green);">@bp.get("/users/me")  # SECURE: Parameterized + Access Control&#10;user_id = session.get("user_id")  # From TRUSTED session&#10;user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()&#10;# ? placeholder prevents SQL injection&#10;# user_id from session means NO IDOR</code>
+        The <code>/users/me</code> endpoint cannot be exploited because:<br>
+        1️⃣ User input is NOT in the SQL query<br>
+        2️⃣ User ID comes from session (attacker cannot change it)<br>
+        3️⃣ Returns ONLY authenticated user's data
       </div>
     </div>
   </div>
@@ -1236,11 +1245,11 @@ async function runIDOR(mode){
     : document.getElementById('idorDefendOut');
   out.textContent='Running…';
   
-  let ep, body={};
+  let ep;
   if(mode==='attack'){
-    const targetId = document.getElementById('idorAttackId').value.trim();
-    if(!targetId){ alert_('Enter a user ID to test','error'); return; }
-    ep = '/users/'+targetId;
+    const payload = document.getElementById('idorAttackPayload').value.trim();
+    if(!payload){ alert_('Enter a payload (try 1, 2, or SQL injection)','error'); return; }
+    ep = '/users/attack/'+encodeURIComponent(payload);
   } else {
     ep = '/users/me';
   }
@@ -1248,7 +1257,7 @@ async function runIDOR(mode){
   const {ok, status, data} = await api(ep, {method:'GET'});
   
   if(status===401){ out.innerHTML=termLine('t-err','[AUTH] Please login first.'); return; }
-  if(status===404){ out.innerHTML=termLine('t-err','[NOT FOUND] User not found.'); return; }
+  if(status===404){ out.innerHTML=termLine('t-err','[NOT FOUND] No users found.'); return; }
   
   if(!ok){
     out.innerHTML = termLine('t-err','[ERROR] '+((data.error||data.message)||'unknown'));
@@ -1256,23 +1265,39 @@ async function runIDOR(mode){
   }
   
   if(mode==='attack'){
-    out.innerHTML = termLine('t-warn','⚠ SUCCESS — IDOR Vulnerability Exploited!')
-      + termLine('t-muted','Target user data:')
-      + termLine('t-key','  ID: ') + '<span class="t-val">'+data.id+'</span><br>'
-      + termLine('t-key','  Username: ') + '<span class="t-val">'+data.username+'</span><br>'
-      + termLine('t-key','  Email: ') + '<span class="t-val">'+(data.email||'(not set)')+'</span><br>'
-      + termLine('t-key','  Phone: ') + '<span class="t-val">'+(data.phone||'(not set)')+'</span><br>'
-      + termLine('t-key','  Address: ') + '<span class="t-val">'+(data.address||'(not set)')+'</span><br>'
-      + termLine('t-key','  Notes: ') + '<span class="t-val">'+(data.notes||'(not set)')+'</span><br>';
+    let html = '';
+    if(data.vulnerable && data.users && data.users.length > 1){
+      html += termLine('t-warn','⚠ VULNERABLE — SQL Injection + IDOR!')
+        + termLine('t-warn','Returned '+data.users_returned+' user(s)');
+    } else if(data.users && data.users.length === 1){
+      html += termLine('t-warn','✓ Found 1 user');
+    }
+    
+    if(data.sql) html += '\n'+termLine('t-sql','SQL: '+data.sql);
+    html += '\n'+termLine('t-muted','User profiles:');
+    
+    if(data.users){
+      data.users.forEach((u,i)=>{
+        html += '\n'+termLine('t-ok','[User '+i+']');
+        html += termLine('t-key','  ID: ') + '<span class="t-val">'+u.id+'</span><br>';
+        html += termLine('t-key','  Username: ') + '<span class="t-val">'+u.username+'</span><br>';
+        html += termLine('t-key','  Email: ') + '<span class="t-val">'+(u.email||'(not set)')+'</span><br>';
+        html += termLine('t-key','  Phone: ') + '<span class="t-val">'+(u.phone||'(not set)')+'</span><br>';
+        html += termLine('t-key','  Address: ') + '<span class="t-val">'+(u.address||'(not set)')+'</span><br>';
+        html += termLine('t-key','  Notes: ') + '<span class="t-val">'+(u.notes||'(not set)')+'</span><br>';
+      });
+    }
+    out.innerHTML = html;
   } else {
-    out.innerHTML = termLine('t-ok','✓ SECURE — Access Granted (Your Profile)')
-      + termLine('t-muted','Your profile data:')
+    let html = termLine('t-ok','✓ SECURE — Your Profile')
+      + termLine('t-muted','Only your data (proper authorization):')
       + termLine('t-key','  ID: ') + '<span class="t-val">'+data.id+'</span><br>'
       + termLine('t-key','  Username: ') + '<span class="t-val">'+data.username+'</span><br>'
       + termLine('t-key','  Email: ') + '<span class="t-val">'+(data.email||'(not set)')+'</span><br>'
       + termLine('t-key','  Phone: ') + '<span class="t-val">'+(data.phone||'(not set)')+'</span><br>'
       + termLine('t-key','  Address: ') + '<span class="t-val">'+(data.address||'(not set)')+'</span><br>'
       + termLine('t-key','  Notes: ') + '<span class="t-val">'+(data.notes||'(not set)')+'</span><br>';
+    out.innerHTML = html;
   }
 }
 
