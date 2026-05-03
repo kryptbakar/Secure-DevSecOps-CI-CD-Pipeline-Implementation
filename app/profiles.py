@@ -97,6 +97,9 @@ def get_user_profile_secure():
     # Extract user_id from session, not from request params
     user_id = session.get("user_id")
     
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
     with tx() as db:
         user = db.execute(
             "SELECT id, username, email, phone, address, notes FROM users WHERE id = ?",
@@ -105,6 +108,13 @@ def get_user_profile_secure():
         
         if not user:
             return jsonify({"error": "User not found"}), 404
+        
+        log_action(
+            "USER_PROFILE_VIEWED_SECURE",
+            resource=f"user:{user_id}",
+            details={"user_id": user_id},
+            success=True
+        )
         
         return jsonify({
             "id": user["id"],
