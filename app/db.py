@@ -2,6 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 
 from flask import g
+from werkzeug.security import generate_password_hash
 
 
 def init_db(app, database_path: str) -> None:
@@ -113,6 +114,54 @@ def init_db(app, database_path: str) -> None:
             conn.execute("ALTER TABLE users ADD COLUMN address TEXT")
         if not column_exists("users", "notes"):
             conn.execute("ALTER TABLE users ADD COLUMN notes TEXT")
+        
+        # Seed demo users for IDOR lab if the table is empty
+        import datetime
+        now = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
+        
+        if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
+            # Create demo users with profile data for IDOR testing
+            demo_users = [
+                {
+                    "username": "alice",
+                    "password": "Alice@1234",
+                    "email": "alice@example.com",
+                    "phone": "+1-555-0101",
+                    "address": "123 Main St, Springfield, IL 62701",
+                    "notes": "Alice's private notes - confidential project planning",
+                },
+                {
+                    "username": "bob",
+                    "password": "Bob@1234",
+                    "email": "bob@example.com",
+                    "phone": "+1-555-0102",
+                    "address": "456 Oak Ave, Portland, OR 97201",
+                    "notes": "Bob's notes - upcoming interview schedule",
+                },
+                {
+                    "username": "charlie",
+                    "password": "Charlie@1234",
+                    "email": "charlie@example.com",
+                    "phone": "+1-555-0103",
+                    "address": "789 Pine Rd, Denver, CO 80202",
+                    "notes": "Charlie's notes - sensitive customer data",
+                },
+                {
+                    "username": "diana",
+                    "password": "Diana@1234",
+                    "email": "diana@example.com",
+                    "phone": "+1-555-0104",
+                    "address": "321 Elm St, Austin, TX 78701",
+                    "notes": "Diana's notes - personal financial records",
+                },
+            ]
+            
+            for user in demo_users:
+                password_hash = generate_password_hash(user["password"])
+                conn.execute(
+                    "INSERT INTO users (username, password_hash, role, created_at, email, phone, address, notes) VALUES (?,?,?,?,?,?,?,?)",
+                    (user["username"], password_hash, "user", now, user["email"], user["phone"], user["address"], user["notes"]),
+                )
         
         conn.commit()
 
