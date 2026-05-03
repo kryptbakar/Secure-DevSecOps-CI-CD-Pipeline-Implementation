@@ -23,7 +23,11 @@ def init_db(app, database_path: str) -> None:
                 role             TEXT    NOT NULL DEFAULT 'user',
                 is_active        INTEGER NOT NULL DEFAULT 1,
                 created_at       TEXT    NOT NULL,
-                last_login       TEXT
+                last_login       TEXT,
+                email            TEXT,
+                phone            TEXT,
+                address          TEXT,
+                notes            TEXT
             );
 
             CREATE TABLE IF NOT EXISTS items (
@@ -95,6 +99,21 @@ def init_db(app, database_path: str) -> None:
                     ("Microsoft Surface Pro 9",  "Tablets",      999.00, "Detachable Windows 11 Pro tablet with LTE option"),
                 ],
             )
+        
+        # Add profile columns if they don't exist (safe migration)
+        def column_exists(table: str, column: str) -> bool:
+            r = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            return any(col[1] == column for col in r)
+        
+        if not column_exists("users", "email"):
+            conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        if not column_exists("users", "phone"):
+            conn.execute("ALTER TABLE users ADD COLUMN phone TEXT")
+        if not column_exists("users", "address"):
+            conn.execute("ALTER TABLE users ADD COLUMN address TEXT")
+        if not column_exists("users", "notes"):
+            conn.execute("ALTER TABLE users ADD COLUMN notes TEXT")
+        
         conn.commit()
 
     @app.before_request

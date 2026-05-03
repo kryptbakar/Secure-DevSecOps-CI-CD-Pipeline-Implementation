@@ -11,6 +11,7 @@ from .dashboard import bp as dashboard_bp
 from .db import init_db
 from .items import bp as items_bp
 from .lab import bp as lab_bp
+from .profiles import bp as profiles_bp
 from .security import init_security
 
 
@@ -47,6 +48,7 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(items_bp)
     app.register_blueprint(api_keys_bp)
+    app.register_blueprint(profiles_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(lab_bp)
 
