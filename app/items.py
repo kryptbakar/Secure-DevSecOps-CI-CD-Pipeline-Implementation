@@ -2,67 +2,68 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, request, session
 
+from .audit import log_action
 from .db import tx
+from .rbac import requires_auth
+from .validators import (
+    ValidationError,
+    validate_item_body,
+    validate_item_title,
+    validate_search_query,
+)
 
 bp = Blueprint("items", __name__, url_prefix="/items")
 
 
-def _require_user() -> int | None:
-    uid = session.get("user_id")
-    return int(uid) if uid is not None else None
-
-
 @bp.get("")
+@requires_auth
 def list_items():
-    uid = _require_user()
-    if not uid:
-        return jsonify({"error": "auth required"}), 401
-
+    uid = session["user_id"]
     with tx() as db:
         rows = db.execute(
             "SELECT id, title, body, created_at FROM items WHERE user_id = ? ORDER BY id DESC",
             (uid,),
         ).fetchall()
-
     return jsonify({"items": [dict(r) for r in rows]})
 
 
 @bp.post("")
+@requires_auth
 def create_item():
-    uid = _require_user()
-    if not uid:
-        return jsonify({"error": "auth required"}), 401
-
+    uid = session["user_id"]
     data = request.get_json(silent=True) or {}
-    title = (data.get("title") or "").strip()
-    body = data.get("body") or ""
 
-    if not title:
-        return jsonify({"error": "title required"}), 400
+    try:
+        title = validate_item_title(data.get("title") or "")
+        body = validate_item_body(data.get("body") or "")
+    except ValidationError as e:
+        return jsonify({"error": e.message, "field": e.field}), 400
 
     now = _dt.datetime.now(_dt.UTC).isoformat().replace("+00:00", "Z")
-
     with tx() as db:
         cur = db.execute(
-            "INSERT INTO items (user_id, title, body, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO items (user_id, title, body, created_at) VALUES (?,?,?,?)",
             (uid, title, body, now),
         )
         item_id = cur.lastrowid
 
+    log_action("ITEM_CREATE", resource=f"item:{item_id}", details={"title": title})
     return jsonify({"ok": True, "item": {"id": item_id, "title": title, "body": body}}), 201
 
 
 @bp.put("/<int:item_id>")
+@requires_auth
 def update_item(item_id: int):
-    uid = _require_user()
-    if not uid:
-        return jsonify({"error": "auth required"}), 401
-
+    uid = session["user_id"]
     data = request.get_json(silent=True) or {}
-    title = (data.get("title") or "").strip()
-    body = data.get("body") or ""
+
+    try:
+        title = validate_item_title(data.get("title") or "")
+        body = validate_item_body(data.get("body") or "")
+    except ValidationError as e:
+        return jsonify({"error": e.message, "field": e.field}), 400
 
     with tx() as db:
         row = db.execute(
@@ -72,56 +73,94 @@ def update_item(item_id: int):
             return jsonify({"error": "not found"}), 404
 
         db.execute(
-            (
-                "UPDATE items SET title = COALESCE(NULLIF(?, ''), title), "
-                "body = ? "
-                "WHERE id = ? AND user_id = ?"
-            ),
+            "UPDATE items SET title = COALESCE(NULLIF(?,'')), body = ? WHERE id = ? AND user_id = ?",
             (title, body, item_id, uid),
         )
 
+    log_action("ITEM_UPDATE", resource=f"item:{item_id}")
     return jsonify({"ok": True})
 
 
 @bp.delete("/<int:item_id>")
+@requires_auth
 def delete_item(item_id: int):
-    uid = _require_user()
-    if not uid:
-        return jsonify({"error": "auth required"}), 401
-
+    uid = session["user_id"]
     with tx() as db:
         cur = db.execute(
-            "DELETE FROM items WHERE id = ? AND user_id = ?",
-            (item_id, uid),
+            "DELETE FROM items WHERE id = ? AND user_id = ?", (item_id, uid)
         )
 
     if cur.rowcount == 0:
         return jsonify({"error": "not found"}), 404
 
+    log_action("ITEM_DELETE", resource=f"item:{item_id}")
     return jsonify({"ok": True})
 
 
-@bp.get("/search")
-def search_items():
-    """Intentionally insecure search endpoint (SQL injection risk).
+# ---------------------------------------------------------------------------
+# Dual search endpoints (teaching feature)
+# ---------------------------------------------------------------------------
 
-    This is included as a *vulnerable-by-design* example for the course.
-    """
+@bp.get("/search_secure")
+@requires_auth
+def search_secure():
+    """SECURE: parameterized query + input validation. Always available."""
+    uid = session["user_id"]
 
-    uid = _require_user()
-    if not uid:
-        return jsonify({"error": "auth required"}), 401
+    try:
+        q = validate_search_query(request.args.get("q") or "")
+    except ValidationError as e:
+        return jsonify({"error": e.message}), 400
 
+    with tx() as db:
+        rows = db.execute(
+            "SELECT id, title, body, created_at FROM items "
+            "WHERE user_id = ? AND title LIKE ? ORDER BY id DESC",
+            (uid, f"%{q}%"),
+        ).fetchall()
+
+    return jsonify({
+        "items": [dict(r) for r in rows],
+        "mode": "secure",
+        "note": "Parameterized query + input validation. No SQL injection possible.",
+    })
+
+
+@bp.get("/search_insecure")
+@requires_auth
+def search_insecure():
+    """INTENTIONALLY VULNERABLE to SQL injection — available only when SECURE_MODE=false."""
+    if current_app.config.get("SECURE_MODE", True):
+        return jsonify({
+            "error": "This vulnerable endpoint is disabled in SECURE_MODE.",
+            "hint": "Set environment variable SECURE_MODE=false to enable for demos.",
+        }), 403
+
+    uid = session["user_id"]
     q = (request.args.get("q") or "").strip()
 
-    # Vulnerability (intended): string concatenation into SQL.
-    # Bandit may not always flag this; it is here for demonstration/discussion.
+    # VULNERABLE: direct string interpolation — classic SQL injection vector
     sql = (
-        "SELECT id, title, body, created_at FROM items "
-        f"WHERE user_id = {uid} AND title LIKE '%{q}%' ORDER BY id DESC"
+        f"SELECT id, title, body, created_at FROM items "
+        f"WHERE user_id = {uid} AND title LIKE '%{q}%'"
     )
 
     with tx() as db:
-        rows = db.execute(sql).fetchall()
+        try:
+            rows = db.execute(sql).fetchall()
+        except Exception as exc:
+            return jsonify({"error": str(exc), "sql": sql}), 500
 
-    return jsonify({"items": [dict(r) for r in rows], "note": "insecure query demo"})
+    return jsonify({
+        "items": [dict(r) for r in rows],
+        "mode": "insecure",
+        "sql": sql,
+        "warning": "DEMO ONLY — intentionally vulnerable to SQL injection.",
+    })
+
+
+@bp.get("/search")
+@requires_auth
+def search_items():
+    """Alias for search_secure (default safe behaviour)."""
+    return search_secure()
