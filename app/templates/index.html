@@ -939,7 +939,7 @@ function updateUserBar(){
 
 async function toggleSecureMode(){
   try{
-    const {ok, data} = await api('/lab/toggle-secure-mode', {method:'POST'});
+    const {ok, status, data} = await api('/lab/toggle-secure-mode', {method:'POST'});
     if(ok){
       const pill = document.getElementById('modePill');
       if(data.secure_mode){
@@ -951,7 +951,8 @@ async function toggleSecureMode(){
       }
       alert_(`✅ ${data.message}\n${data.status}`, 'ok');
     } else {
-      alert_('❌ Failed to toggle SECURE_MODE', 'error');
+      const errMsg = data?.error || `HTTP ${status}`;
+      alert_(`❌ Failed to toggle SECURE_MODE\n${errMsg}`, 'error');
     }
   } catch(e){
     alert_(`❌ Error: ${e.message}`, 'error');
