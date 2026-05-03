@@ -754,12 +754,14 @@ button{
       <p>Insecure Direct Object References (IDOR) occur when an app uses user-controlled input directly without authorization. The <span style="color:var(--red)">Attack</span> panel shows how to access ANY user. The <span style="color:var(--green)">Defend</span> panel enforces proper access control.</p>
     </div>
 
+    <div class="alert info">ℹ️ Demo Users: ID <strong>1</strong>=alice, <strong>2</strong>=bob, <strong>3</strong>=charlie, <strong>4</strong>=diana. Login as any user and try accessing other users' profiles using the Attack panel!</div>
+
     <div class="split">
       <div class="attack-panel">
         <div class="panel-hd">⚡ Attack — /users/[id] (Insecure)</div>
         <div class="panel-body">
           <div class="form-row">
-            <input type="number" id="idorAttackId" placeholder="Enter any user ID (try 1, 2, 3…)" min="1">
+            <input type="number" id="idorAttackId" placeholder="Enter user ID (1=alice, 2=bob, 3=charlie, 4=diana)" min="1">
             <button class="btn-attack" onclick="runIDOR('attack')">⚡ Access Profile</button>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--orange)">/users/[user_id]</code></div>

@@ -121,47 +121,18 @@ def init_db(app, database_path: str) -> None:
         
         if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
             # Create demo users with profile data for IDOR testing
+            # Using explicit IDs: 1=alice, 2=bob, 3=charlie, 4=diana
             demo_users = [
-                {
-                    "username": "alice",
-                    "password": "Alice@1234",
-                    "email": "alice@example.com",
-                    "phone": "+1-555-0101",
-                    "address": "123 Main St, Springfield, IL 62701",
-                    "notes": "Alice's private notes - confidential project planning",
-                },
-                {
-                    "username": "bob",
-                    "password": "Bob@1234",
-                    "email": "bob@example.com",
-                    "phone": "+1-555-0102",
-                    "address": "456 Oak Ave, Portland, OR 97201",
-                    "notes": "Bob's notes - upcoming interview schedule",
-                },
-                {
-                    "username": "charlie",
-                    "password": "Charlie@1234",
-                    "email": "charlie@example.com",
-                    "phone": "+1-555-0103",
-                    "address": "789 Pine Rd, Denver, CO 80202",
-                    "notes": "Charlie's notes - sensitive customer data",
-                },
-                {
-                    "username": "diana",
-                    "password": "Diana@1234",
-                    "email": "diana@example.com",
-                    "phone": "+1-555-0104",
-                    "address": "321 Elm St, Austin, TX 78701",
-                    "notes": "Diana's notes - personal financial records",
-                },
+                (1, "alice", generate_password_hash("Alice@1234"), "user", 1, now, None, "alice@example.com", "+1-555-0101", "123 Main St, Springfield, IL 62701", "Alice's private notes - confidential project planning"),
+                (2, "bob", generate_password_hash("Bob@1234"), "user", 1, now, None, "bob@example.com", "+1-555-0102", "456 Oak Ave, Portland, OR 97201", "Bob's notes - upcoming interview schedule"),
+                (3, "charlie", generate_password_hash("Charlie@1234"), "user", 1, now, None, "charlie@example.com", "+1-555-0103", "789 Pine Rd, Denver, CO 80202", "Charlie's notes - sensitive customer data"),
+                (4, "diana", generate_password_hash("Diana@1234"), "user", 1, now, None, "diana@example.com", "+1-555-0104", "321 Elm St, Austin, TX 78701", "Diana's notes - personal financial records"),
             ]
             
-            for user in demo_users:
-                password_hash = generate_password_hash(user["password"])
-                conn.execute(
-                    "INSERT INTO users (username, password_hash, role, created_at, email, phone, address, notes) VALUES (?,?,?,?,?,?,?,?)",
-                    (user["username"], password_hash, "user", now, user["email"], user["phone"], user["address"], user["notes"]),
-                )
+            conn.executemany(
+                "INSERT INTO users (id, username, password_hash, role, is_active, created_at, last_login, email, phone, address, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                demo_users
+            )
         
         conn.commit()
 
