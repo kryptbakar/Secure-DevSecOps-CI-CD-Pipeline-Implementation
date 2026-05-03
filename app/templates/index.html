@@ -317,6 +317,9 @@ button{
     <div class="nav-item" onclick="nav('ratelimit')">
       <span class="icon">⏱</span><span class="lbl">Rate Limiting</span>
     </div>
+    <div class="nav-item" onclick="nav('idor')">
+      <span class="icon">🔓</span><span class="lbl">User Profile (IDOR)</span>
+    </div>
   </div>
 
   <div class="nav-group">
@@ -398,6 +401,12 @@ button{
             <h4>Rate Limiting</h4>
             <p>Trigger the rate limiter on login and API endpoints. Watch it block brute force.</p>
             <span class="lc-tag secure">Active</span>
+          </div>
+          <div class="lab-card" onclick="nav('idor')">
+            <div class="lc-icon">🔓</div>
+            <h4>Broken Access Control (IDOR)</h4>
+            <p>Access other users' profiles using the insecure endpoint. See proper authorization in action.</p>
+            <span class="lc-tag vuln">OWASP A01</span>
           </div>
         </div>
       </div>
@@ -738,6 +747,51 @@ button{
     </div>
   </div>
 
+  <!-- ── USER PROFILE IDOR LAB ────────────────────────────────── -->
+  <div class="section" id="sec-idor">
+    <div class="page-header">
+      <h2>🔓 User Profile - Broken Access Control (IDOR)</h2>
+      <p>Insecure Direct Object References (IDOR) occur when an app uses user-controlled input directly without authorization. The <span style="color:var(--red)">Attack</span> panel shows how to access ANY user. The <span style="color:var(--green)">Defend</span> panel enforces proper access control.</p>
+    </div>
+
+    <div class="split">
+      <div class="attack-panel">
+        <div class="panel-hd">⚡ Attack — /users/[id] (Insecure)</div>
+        <div class="panel-body">
+          <div class="form-row">
+            <input type="number" id="idorAttackId" placeholder="Enter any user ID (try 1, 2, 3…)" min="1">
+            <button class="btn-attack" onclick="runIDOR('attack')">⚡ Access Profile</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--orange)">/users/[user_id]</code></div>
+          <div class="terminal" id="idorAttackOut">Enter a user ID to access their profile…</div>
+        </div>
+      </div>
+
+      <div class="defend-panel">
+        <div class="panel-hd">🛡 Defend — /users/me (Secure)</div>
+        <div class="panel-body">
+          <div style="margin-bottom:8px">
+            <button class="btn-defend" onclick="runIDOR('defend')">🛡 Get My Profile</button>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Endpoint: <code style="color:var(--green)">/users/me</code> (uses session)</div>
+          <div class="terminal" id="idorDefendOut">Click to retrieve your profile…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header"><h3>📖 How IDOR Works</h3></div>
+      <div class="card-body" style="font-size:12px;color:var(--muted);line-height:1.9">
+        <strong style="color:var(--red)">VULNERABLE code</strong> — Uses URL param without authorization check:<br>
+        <code style="display:block;margin:6px 0;padding:8px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2);color:var(--orange);">@bp.get("/users/&lt;int:user_id&gt;")  # VULNERABLE: IDOR&#10;user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()&#10;# NO CHECK if session['user_id'] == user_id!</code>
+        Any authenticated user can request <code>/users/2</code> to see User 2's email, phone, address, notes.<br><br>
+        <strong style="color:var(--green)">SECURE code</strong> — Gets user_id from session, not request:<br>
+        <code style="display:block;margin:6px 0;padding:8px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2);color:var(--green);">@bp.get("/users/me")  # SECURE: Proper access control&#10;user_id = session.get("user_id")  # From trusted session&#10;user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()&#10;# User can ONLY read their own data</code>
+        The <code>/users/me</code> endpoint cannot be exploited because it always uses the logged-in user's ID from the session.
+      </div>
+    </div>
+  </div>
+
   <!-- ── NOTE APP ───────────────────────────────────────────── -->
   <div class="section" id="sec-app">
     <div class="page-header">
@@ -875,7 +929,7 @@ function termLine(cls, text){ return `<span class="${cls}">${esc(text)}\n</span>
 const sectionTitles = {
   home:'Dashboard', sqli:'SQL Injection Lab', xss:'XSS Lab',
   auth:'Authentication Security', headers:'Security Headers',
-  csrf:'CSRF Protection', ratelimit:'Rate Limiting',
+  csrf:'CSRF Protection', ratelimit:'Rate Limiting', idor:'User Profile IDOR',
   app:'Note App', events:'Live Events',
 };
 
@@ -1166,6 +1220,57 @@ async function fireRateTest(){
     statusEl.innerHTML = '<span style="color:var(--red);font-weight:700">🛑 RATE LIMITED!</span>';
   } else if(ok){
     statusEl.innerHTML = '<span style="color:var(--green)">✓ Accepted</span>';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   USER PROFILE IDOR LAB
+═══════════════════════════════════════════════════════════ */
+async function runIDOR(mode){
+  if(!S.user){ alert_('Login first to test IDOR','warning'); return; }
+  
+  const out = mode==='attack'
+    ? document.getElementById('idorAttackOut')
+    : document.getElementById('idorDefendOut');
+  out.textContent='Running…';
+  
+  let ep, body={};
+  if(mode==='attack'){
+    const targetId = document.getElementById('idorAttackId').value.trim();
+    if(!targetId){ alert_('Enter a user ID to test','error'); return; }
+    ep = '/users/'+targetId;
+  } else {
+    ep = '/users/me';
+  }
+  
+  const {ok, status, data} = await api(ep, {method:'GET'});
+  
+  if(status===401){ out.innerHTML=termLine('t-err','[AUTH] Please login first.'); return; }
+  if(status===404){ out.innerHTML=termLine('t-err','[NOT FOUND] User not found.'); return; }
+  
+  if(!ok){
+    out.innerHTML = termLine('t-err','[ERROR] '+((data.error||data.message)||'unknown'));
+    return;
+  }
+  
+  if(mode==='attack'){
+    out.innerHTML = termLine('t-warn','⚠ SUCCESS — IDOR Vulnerability Exploited!')
+      + termLine('t-muted','Target user data:')
+      + termLine('t-key','  ID: ') + '<span class="t-val">'+data.id+'</span><br>'
+      + termLine('t-key','  Username: ') + '<span class="t-val">'+data.username+'</span><br>'
+      + termLine('t-key','  Email: ') + '<span class="t-val">'+(data.email||'(not set)')+'</span><br>'
+      + termLine('t-key','  Phone: ') + '<span class="t-val">'+(data.phone||'(not set)')+'</span><br>'
+      + termLine('t-key','  Address: ') + '<span class="t-val">'+(data.address||'(not set)')+'</span><br>'
+      + termLine('t-key','  Notes: ') + '<span class="t-val">'+(data.notes||'(not set)')+'</span><br>';
+  } else {
+    out.innerHTML = termLine('t-ok','✓ SECURE — Access Granted (Your Profile)')
+      + termLine('t-muted','Your profile data:')
+      + termLine('t-key','  ID: ') + '<span class="t-val">'+data.id+'</span><br>'
+      + termLine('t-key','  Username: ') + '<span class="t-val">'+data.username+'</span><br>'
+      + termLine('t-key','  Email: ') + '<span class="t-val">'+(data.email||'(not set)')+'</span><br>'
+      + termLine('t-key','  Phone: ') + '<span class="t-val">'+(data.phone||'(not set)')+'</span><br>'
+      + termLine('t-key','  Address: ') + '<span class="t-val">'+(data.address||'(not set)')+'</span><br>'
+      + termLine('t-key','  Notes: ') + '<span class="t-val">'+(data.notes||'(not set)')+'</span><br>';
   }
 }
 
