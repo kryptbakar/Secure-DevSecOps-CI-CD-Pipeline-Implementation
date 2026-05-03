@@ -49,6 +49,31 @@ def status():
     })
 
 
+@bp.post("/toggle-secure-mode")
+@requires_auth
+def toggle_secure_mode():
+    """Toggle SECURE_MODE on/off (for demo purposes)."""
+    # Get current state
+    current_state = current_app.config.get("SECURE_MODE", True)
+    new_state = not current_state
+    
+    # Update app config
+    current_app.config["SECURE_MODE"] = new_state
+    
+    log_action(
+        "SECURE_MODE_TOGGLED",
+        details={"from": current_state, "to": new_state},
+        success=True
+    )
+    
+    return jsonify({
+        "ok": True,
+        "secure_mode": new_state,
+        "message": f"SECURE_MODE switched to {new_state}",
+        "status": "🟢 SECURE MODE" if new_state else "🟠 INSECURE MODE"
+    })
+
+
 # ---------------------------------------------------------------------------
 # SQL Injection Lab
 # ---------------------------------------------------------------------------

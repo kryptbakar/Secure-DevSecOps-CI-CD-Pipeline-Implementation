@@ -40,7 +40,15 @@ code{font-family:var(--font-mono);font-size:12px;background:var(--bg2);padding:1
 .mode-pill{
   display:inline-flex;align-items:center;gap:5px;padding:3px 8px;
   border-radius:20px;font-size:10px;font-weight:700;margin-top:8px;
-  border:1px solid;
+  border:1px solid;cursor:pointer;
+  transition:all 200ms ease;user-select:none;
+}
+.mode-pill:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 8px currentColor;
+}
+.mode-pill:active{
+  transform:scale(0.98);
 }
 .mode-pill.secure{background:rgba(63,185,80,.1);color:var(--green);border-color:rgba(63,185,80,.3)}
 .mode-pill.insecure{background:rgba(210,153,34,.1);color:var(--orange);border-color:rgba(210,153,34,.3)}
@@ -275,7 +283,7 @@ button{
       <h1>AUI Secure</h1>
     </div>
     <p>Secure Coding Demos</p>
-    <div id="modePill" class="mode-pill secure">● SECURE MODE</div>
+    <div id="modePill" class="mode-pill secure" onclick="toggleSecureMode()" style="cursor:pointer;" title="Click to toggle SECURE_MODE">● SECURE MODE</div>
   </div>
 
   <div class="nav-group">
@@ -927,6 +935,27 @@ function updateUserBar(){
     <span class="role-badge ${S.user.role}">${esc(S.user.role)}</span>
   `;
   if(S.user.role==='admin') document.getElementById('navAdmin').style.display='';
+}
+
+async function toggleSecureMode(){
+  try{
+    const {ok, data} = await api('/lab/toggle-secure-mode', {method:'POST'});
+    if(ok){
+      const pill = document.getElementById('modePill');
+      if(data.secure_mode){
+        pill.className='mode-pill secure';
+        pill.textContent='● SECURE MODE';
+      } else {
+        pill.className='mode-pill insecure';
+        pill.textContent='⚠ INSECURE MODE';
+      }
+      alert_(`✅ ${data.message}\n${data.status}`, 'ok');
+    } else {
+      alert_('❌ Failed to toggle SECURE_MODE', 'error');
+    }
+  } catch(e){
+    alert_(`❌ Error: ${e.message}`, 'error');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
