@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from flask import Blueprint, current_app, jsonify, request, session
+from flask import Blueprint, current_app, g, jsonify, request, session
 
 from .audit import log_action
 from .db import tx
 from .rbac import requires_auth
+
+
+def _uid() -> int:
+    """Return the authenticated user's ID from session or API key."""
+    return session.get("user_id") or getattr(g, "api_user", {}).get("id")
 from .validators import (
     ValidationError,
     validate_item_body,
@@ -20,7 +25,7 @@ bp = Blueprint("items", __name__, url_prefix="/items")
 @bp.get("")
 @requires_auth
 def list_items():
-    uid = session["user_id"]
+    uid = _uid()
     with tx() as db:
         rows = db.execute(
             "SELECT id, title, body, created_at FROM items WHERE user_id = ? ORDER BY id DESC",
@@ -32,7 +37,7 @@ def list_items():
 @bp.post("")
 @requires_auth
 def create_item():
-    uid = session["user_id"]
+    uid = _uid()
     data = request.get_json(silent=True) or {}
 
     try:
@@ -56,7 +61,7 @@ def create_item():
 @bp.put("/<int:item_id>")
 @requires_auth
 def update_item(item_id: int):
-    uid = session["user_id"]
+    uid = _uid()
     data = request.get_json(silent=True) or {}
 
     try:
@@ -73,7 +78,7 @@ def update_item(item_id: int):
             return jsonify({"error": "not found"}), 404
 
         db.execute(
-            "UPDATE items SET title = COALESCE(NULLIF(?,'')), body = ? WHERE id = ? AND user_id = ?",
+            "UPDATE items SET title = ?, body = ? WHERE id = ? AND user_id = ?",
             (title, body, item_id, uid),
         )
 
@@ -84,7 +89,7 @@ def update_item(item_id: int):
 @bp.delete("/<int:item_id>")
 @requires_auth
 def delete_item(item_id: int):
-    uid = session["user_id"]
+    uid = _uid()
     with tx() as db:
         cur = db.execute(
             "DELETE FROM items WHERE id = ? AND user_id = ?", (item_id, uid)
@@ -105,7 +110,7 @@ def delete_item(item_id: int):
 @requires_auth
 def search_secure():
     """SECURE: parameterized query + input validation. Always available."""
-    uid = session["user_id"]
+    uid = _uid()
 
     try:
         q = validate_search_query(request.args.get("q") or "")
@@ -136,7 +141,7 @@ def search_insecure():
             "hint": "Set environment variable SECURE_MODE=false to enable for demos.",
         }), 403
 
-    uid = session["user_id"]
+    uid = _uid()
     q = (request.args.get("q") or "").strip()
 
     # VULNERABLE: direct string interpolation — classic SQL injection vector

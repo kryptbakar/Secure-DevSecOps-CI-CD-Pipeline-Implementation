@@ -38,8 +38,9 @@ def get_user_profile_insecure(user_input: str):
     
     with tx() as db:
         try:
-            # Vulnerable: String interpolation allows SQL injection
-            sql = f"SELECT id, username, email, phone, address, notes FROM users WHERE id = '{user_input}' OR '1'='1'"
+            # VULNERABLE: String interpolation — no parameterization, no auth check
+            # Entering ID "1" returns alice. Entering "' OR '1'='1" returns ALL users (SQLi).
+            sql = f"SELECT id, username, email, phone, address, notes FROM users WHERE id = '{user_input}'"
             users = db.execute(sql).fetchall()
             
             if not users:
@@ -162,7 +163,6 @@ def update_user_profile():
             "UPDATE users SET email = ?, phone = ?, address = ?, notes = ? WHERE id = ?",
             (email, phone, address, notes, user_id)
         )
-        db.commit()
         
         log_action(
             "USER_PROFILE_UPDATED",

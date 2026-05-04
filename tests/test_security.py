@@ -101,18 +101,18 @@ def test_account_lockout_after_max_attempts(app, client):
 
 def test_correct_login_clears_lockout_counter(client):
     """A successful login resets the failure counter."""
-    register(client, "bob", "Correct1!")
+    register(client, "lockout_tester", "Correct1!")
 
     # Fail twice (below lockout threshold)
-    login(client, "bob", "Wrong1!")
-    login(client, "bob", "Wrong1!")
+    login(client, "lockout_tester", "Wrong1!")
+    login(client, "lockout_tester", "Wrong1!")
 
     # Succeed
-    r = login(client, "bob", "Correct1!")
+    r = login(client, "lockout_tester", "Correct1!")
     assert r.status_code == 200
 
     # Subsequent failures should start the counter fresh
-    r2 = login(client, "bob", "Wrong1!")
+    r2 = login(client, "lockout_tester", "Wrong1!")
     assert r2.status_code == 401
 
 

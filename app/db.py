@@ -14,7 +14,8 @@ def init_db(app, database_path: str) -> None:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    with get_conn() as conn:
+    conn = get_conn()
+    try:
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -135,6 +136,8 @@ def init_db(app, database_path: str) -> None:
             )
         
         conn.commit()
+    finally:
+        conn.close()
 
     @app.before_request
     def _open_db():

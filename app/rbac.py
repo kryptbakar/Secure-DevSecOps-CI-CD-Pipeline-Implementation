@@ -2,19 +2,33 @@ from __future__ import annotations
 
 from functools import wraps
 
-from flask import g, jsonify, session
+from flask import g, jsonify, request, session
 
 from .audit import log_action
 
 
+def _try_api_key_auth() -> bool:
+    """Check for a Bearer token and authenticate via API key. Returns True on success."""
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return False
+    from .api_keys import _lookup_user  # local import avoids circular dependency
+    user = _lookup_user(header[7:])
+    if user:
+        g.api_user = user
+        return True
+    return False
+
+
 def requires_auth(f):
-    """Require a valid session (any role)."""
+    """Require a valid session OR a valid API key (Bearer token)."""
 
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("user_id"):
-            # Also allow API-key-authenticated requests (set by api_key_auth decorator)
             if not getattr(g, "api_user", None):
+                _try_api_key_auth()
+            if not session.get("user_id") and not getattr(g, "api_user", None):
                 return jsonify({"error": "authentication required"}), 401
         return f(*args, **kwargs)
 

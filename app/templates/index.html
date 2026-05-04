@@ -158,6 +158,7 @@ code{font-family:var(--font-mono);font-size:12px;background:var(--bg2);padding:1
 .terminal .t-err{color:var(--red)}
 .terminal .t-warn{color:var(--orange)}
 .terminal .t-key{color:var(--purple)}
+.terminal .t-muted{color:var(--faint)}
 .terminal .t-row{border-bottom:1px solid #1c2128;padding:3px 0}
 
 /* ─── Forms & inputs ────────────────────────────────────── */
@@ -258,6 +259,44 @@ button{
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ─── Pipeline stages ───────────────────────────────────── */
+.pipeline{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:8px 0}
+.pipe-stage{
+  flex:1;min-width:140px;background:var(--bg1);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px 14px;position:relative;text-align:center;
+}
+.pipe-stage+.pipe-stage::before{
+  content:'→';position:absolute;left:-14px;top:50%;transform:translateY(-50%);
+  font-size:18px;color:var(--muted);
+}
+.pipe-stage .ps-icon{font-size:24px;margin-bottom:8px}
+.pipe-stage .ps-name{font-size:12px;font-weight:700;color:#e6edf3;margin-bottom:4px}
+.pipe-stage .ps-tool{font-size:11px;color:var(--cyan);font-family:var(--font-mono)}
+.pipe-stage .ps-desc{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5}
+.pipe-stage.ps-pass{border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.04)}
+.pipe-stage.ps-warn{border-color:rgba(210,153,34,.4);background:rgba(210,153,34,.04)}
+.ps-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:8px;border:1px solid}
+.ps-badge.pass{background:rgba(63,185,80,.12);color:var(--green);border-color:rgba(63,185,80,.3)}
+.ps-badge.warn{background:rgba(210,153,34,.12);color:var(--orange);border-color:rgba(210,153,34,.3)}
+.ps-badge.info{background:rgba(88,166,255,.12);color:var(--blue);border-color:rgba(88,166,255,.3)}
+
+/* ─── API key table ─────────────────────────────────────── */
+.key-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border2)}
+.key-row:last-child{border-bottom:none}
+.key-prefix{font-family:var(--font-mono);font-size:12px;color:var(--cyan);flex:1}
+.key-name{font-size:12px;color:var(--text)}
+.key-date{font-size:11px;color:var(--faint)}
+
+/* ─── Quick-login chips ─────────────────────────────────── */
+.demo-users{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.demo-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 11px;
+  border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;
+  border:1px solid var(--border);background:var(--bg2);color:var(--text);
+  transition:all .15s;
+}
+.demo-chip:hover{border-color:var(--blue);background:rgba(88,166,255,.08);color:var(--blue)}
+
 /* ─── Responsive ─────────────────────────────────────────── */
 @media(max-width:900px){
   .sidebar{width:52px;overflow:visible}
@@ -319,6 +358,16 @@ button{
     </div>
     <div class="nav-item" onclick="nav('idor')">
       <span class="icon">🔓</span><span class="lbl">User Profile (IDOR)</span>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">DevSecOps</div>
+    <div class="nav-item" onclick="nav('pipeline')">
+      <span class="icon">🔁</span><span class="lbl">CI/CD Pipeline</span>
+    </div>
+    <div class="nav-item" onclick="nav('apikeys')">
+      <span class="icon">🗝</span><span class="lbl">API Keys</span>
     </div>
   </div>
 
@@ -408,6 +457,18 @@ button{
             <p>Access other users' profiles using the insecure endpoint. See proper authorization in action.</p>
             <span class="lc-tag vuln">OWASP A01</span>
           </div>
+          <div class="lab-card" onclick="nav('pipeline')">
+            <div class="lc-icon">🔁</div>
+            <h4>CI/CD Security Pipeline</h4>
+            <p>Five automated security gates: Tests, Secret Scan, SAST, SCA with auto-fix, and DAST.</p>
+            <span class="lc-tag demo">5 Stages</span>
+          </div>
+          <div class="lab-card" onclick="nav('apikeys')">
+            <div class="lc-icon">🗝</div>
+            <h4>API Key Management</h4>
+            <p>SHA-256 hashed keys, Bearer token auth, revocation, and last-used tracking.</p>
+            <span class="lc-tag secure">Hashed Storage</span>
+          </div>
         </div>
       </div>
     </div>
@@ -419,14 +480,15 @@ button{
           <div>
             <p style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:10px"><strong style="color:var(--text)">Backend (Flask)</strong></p>
             <div style="font-size:12px;color:var(--muted);line-height:2">
-              ✅ werkzeug password hashing (scrypt)<br>
+              ✅ scrypt password hashing (memory-hard)<br>
               ✅ Parameterized SQL queries everywhere<br>
               ✅ Account lockout + exponential backoff<br>
-              ✅ Session rotation on login<br>
-              ✅ RBAC with <code>@requires_role</code><br>
-              ✅ Hashed API keys (SHA-256)<br>
+              ✅ Session rotation + CSRF tokens<br>
+              ✅ RBAC with <code>@requires_role</code> decorator<br>
+              ✅ SHA-256 hashed API keys (shown once)<br>
               ✅ Full audit trail in SQLite<br>
-              ✅ Input validation + HTML sanitization
+              ✅ Input validation + bleach sanitization<br>
+              ✅ 7 security response headers + CSP nonce
             </div>
           </div>
           <div>
@@ -435,9 +497,11 @@ button{
               ✅ SAST → Bandit (static analysis)<br>
               ✅ SCA → pip-audit (CVE scanning)<br>
               ✅ Secret scanning → gitleaks<br>
-              ✅ DAST → OWASP ZAP baseline<br>
-              ✅ Auto-remediation → creates a PR<br>
-              ✅ Pre-commit hooks on every commit
+              ✅ DAST → OWASP ZAP baseline scan<br>
+              ✅ Auto-remediation → opens PR with fixes<br>
+              ✅ Pre-commit hooks on every commit<br>
+              ✅ 10/10 OWASP Top 10 coverage<br>
+              ✅ Attack-vs-Defend side-by-side demos
             </div>
           </div>
         </div>
@@ -754,23 +818,29 @@ button{
       <p>Insecure Direct Object References (IDOR) occur when an app uses user-controlled input directly without authorization. The <span style="color:var(--red)">Attack</span> panel shows how to access ANY user. The <span style="color:var(--green)">Defend</span> panel enforces proper access control.</p>
     </div>
 
-    <div class="alert info">ℹ️ Demo Users: ID <strong>1</strong>=alice, <strong>2</strong>=bob, <strong>3</strong>=charlie, <strong>4</strong>=diana. Try SQL injection payloads like <code>' OR '1'='1</code> in the Attack panel!</div>
+    <div class="alert info">ℹ️ Demo users: ID <strong>1</strong>=alice · <strong>2</strong>=bob · <strong>3</strong>=charlie · <strong>4</strong>=diana. Enter any ID to see IDOR, then try <code>' OR '1'='1</code> to add SQL injection on top.</div>
 
     <div class="split">
       <div class="attack-panel">
         <div class="panel-hd">⚡ Attack — /users/attack/[payload] (Insecure)</div>
         <div class="panel-body">
+          <div style="margin-bottom:8px">
+            <span style="font-size:11px;color:var(--muted);font-weight:600">IDOR (access any user):</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire('1')">1 alice</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire('2')">2 bob</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire('3')">3 charlie</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire('4')">4 diana</span>
+            <br>
+            <span style="font-size:11px;color:var(--muted);font-weight:600">IDOR + SQLi (dump all):</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire(&quot;' OR '1'='1&quot;)">' OR '1'='1</span>
+            <span class="chip" style="display:inline-block;margin:2px" onclick="idorFire(&quot;1' OR '1'='1&quot;)">1' OR '1'='1</span>
+          </div>
           <div class="form-row">
-            <input type="text" id="idorAttackPayload" placeholder="Try: 1, 2, 3, 4, or ' OR '1'='1">
+            <input type="text" id="idorAttackPayload" placeholder="Enter user ID or SQL injection payload"
+              onkeydown="if(event.key==='Enter')runIDOR('attack')">
             <button class="btn-attack" onclick="runIDOR('attack')">⚡ Attack</button>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:6px">
-            <strong style="color:var(--orange)">Try these payloads:</strong><br>
-            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value='1'">1</span>
-            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value='2'">2</span>
-            <span class="chip" style="display:inline-block;margin:2px 2px 2px 0" onclick="document.getElementById('idorAttackPayload').value=&quot;' OR '1'='1&quot;">' OR '1'='1</span>
-          </div>
-          <div class="terminal" id="idorAttackOut">Enter a payload to test IDOR + SQL Injection…</div>
+          <div class="terminal" id="idorAttackOut">Click a chip or enter a payload…</div>
         </div>
       </div>
 
@@ -803,6 +873,168 @@ button{
     </div>
   </div>
 
+  <!-- ── CI/CD PIPELINE ──────────────────────────────────────── -->
+  <div class="section" id="sec-pipeline">
+    <div class="page-header">
+      <h2>🔁 CI/CD Security Pipeline</h2>
+      <p>Five automated security gates run on every push via GitHub Actions. Each stage must pass before code can reach production — security is enforced, not optional.</p>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipe-stage ps-pass">
+        <div class="ps-icon">🧪</div>
+        <div class="ps-name">1 · Tests</div>
+        <div class="ps-tool">pytest</div>
+        <div class="ps-desc">Functional + security test suite. Auth, CRUD, SQLi resistance, XSS, lockout, RBAC.</div>
+        <span class="ps-badge pass">REQUIRED</span>
+      </div>
+      <div class="pipe-stage ps-pass">
+        <div class="ps-icon">🔑</div>
+        <div class="ps-name">2 · Secret Scan</div>
+        <div class="ps-tool">gitleaks</div>
+        <div class="ps-desc">Blocks hardcoded API keys, tokens, and passwords from entering the repository.</div>
+        <span class="ps-badge pass">BLOCKS MERGE</span>
+      </div>
+      <div class="pipe-stage ps-pass">
+        <div class="ps-icon">🔎</div>
+        <div class="ps-name">3 · SAST</div>
+        <div class="ps-tool">bandit</div>
+        <div class="ps-desc">Static Application Security Testing. Detects insecure code patterns in Python source.</div>
+        <span class="ps-badge pass">HIGH SEVERITY</span>
+      </div>
+      <div class="pipe-stage ps-warn">
+        <div class="ps-icon">📦</div>
+        <div class="ps-name">4 · SCA</div>
+        <div class="ps-tool">pip-audit</div>
+        <div class="ps-desc">CVE scan of all dependencies. Auto-creates a PR with patched versions if vulnerabilities found.</div>
+        <span class="ps-badge warn">AUTO-FIX PR</span>
+      </div>
+      <div class="pipe-stage ps-warn">
+        <div class="ps-icon">🕷</div>
+        <div class="ps-name">5 · DAST</div>
+        <div class="ps-tool">OWASP ZAP</div>
+        <div class="ps-desc">Dynamic scanning of the running app. Finds runtime vulns invisible to static analysis.</div>
+        <span class="ps-badge info">MAIN ONLY</span>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:16px">
+      <div class="card">
+        <div class="card-header"><h3>🪝 Pre-commit Hooks</h3></div>
+        <div class="card-body">
+          <div class="terminal" style="min-height:160px;font-size:11px">
+<span class="t-key">black</span>         <span class="t-ok">→ code formatting</span>
+<span class="t-key">bandit</span>        <span class="t-ok">→ SAST on staged files</span>
+<span class="t-key">pip-audit</span>     <span class="t-ok">→ dependency CVE check</span>
+<span class="t-key">gitleaks</span>      <span class="t-ok">→ secret detection</span>
+<span class="t-key">check-yaml</span>    <span class="t-ok">→ YAML syntax</span>
+<span class="t-key">check-json</span>    <span class="t-ok">→ JSON syntax</span>
+<span class="t-key">detect-private-key</span> <span class="t-ok">→ blocks .pem files</span>
+<span class="t-key">trailing-whitespace</span> <span class="t-ok">→ formatting</span>
+
+<span class="t-muted">Runs automatically before every commit.</span>
+<span class="t-muted">A single failure blocks the commit.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🤖 Auto-Remediation</h3></div>
+        <div class="card-body">
+          <div class="terminal" style="min-height:160px;font-size:11px">
+<span class="t-prompt">$ pip-audit --format json</span>
+<span class="t-val">→ CVE found in urllib3==1.26.0</span>
+
+<span class="t-prompt">$ python remediate.py</span>
+<span class="t-ok">✓ Updated urllib3 → 2.0.0</span>
+<span class="t-ok">✓ git commit "[security bot]"</span>
+<span class="t-ok">✓ git push origin fix/deps</span>
+<span class="t-ok">✓ gh pr create --title "Fix CVEs"</span>
+
+<span class="t-muted">PR opened automatically. Human</span>
+<span class="t-muted">reviews and merges to main.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-header"><h3>📐 OWASP Top 10 Coverage</h3></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A01 Broken Access Control</strong> — IDOR lab + <code>@requires_role</code></span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A02 Cryptographic Failures</strong> — scrypt hashing lab + HttpOnly cookies</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A03 Injection (SQLi + XSS)</strong> — parameterized queries + bleach</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A04 Insecure Design</strong> — SECURE_MODE gating, threat modelling</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A05 Security Misconfiguration</strong> — headers lab + CSP nonce</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A06 Vulnerable Components</strong> — pip-audit + auto-remediation</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A07 Auth & Session Failures</strong> — lockout + exponential backoff</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2)"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A08 Software Integrity</strong> — gitleaks secret scanning</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A09 Security Logging</strong> — full audit trail, every action logged</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0"><span style="color:var(--green)">✅</span><span><strong style="color:var(--text)">A10 SSRF</strong> — no outbound requests; strict <code>connect-src 'self'</code> CSP</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── API KEYS ───────────────────────────────────────────── -->
+  <div class="section" id="sec-apikeys">
+    <div class="page-header">
+      <h2>🗝 API Key Management</h2>
+      <p>API keys are stored as <strong>SHA-256 hashes only</strong> — the raw key is shown once at creation and never stored. Use them as <code>Authorization: Bearer &lt;key&gt;</code>.</p>
+    </div>
+
+    <div class="alert info" id="newKeyAlert" style="display:none"></div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><h3>➕ Create API Key</h3></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Give your key a name so you can identify it later. The raw key is shown <strong>once</strong>.</p>
+          <div class="form-row">
+            <input type="text" id="keyName" placeholder="Key name (e.g. CI runner, Postman)" maxlength="64">
+            <button class="btn-primary" onclick="createApiKey()">Create Key</button>
+          </div>
+          <div id="newKeyBox" style="display:none;margin-top:12px">
+            <div class="alert warning" style="margin-bottom:8px">⚠ Copy this key now — it will never be shown again.</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <code id="newKeyVal" style="flex:1;padding:8px;background:var(--bg2);border-radius:4px;font-size:12px;word-break:break-all;color:var(--cyan)"></code>
+              <button class="btn-ghost btn-sm" onclick="copyKey()" title="Copy to clipboard">📋</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🔐 How API Key Auth Works</h3></div>
+        <div class="card-body">
+          <div class="terminal" style="min-height:140px;font-size:11px">
+<span class="t-prompt"># Use as Bearer token:</span>
+<span class="t-sql">GET /items HTTP/1.1</span>
+<span class="t-val">Authorization: Bearer sk_abc123…</span>
+
+<span class="t-prompt"># Server-side lookup:</span>
+<span class="t-ok">hash = SHA-256(incoming_key)</span>
+<span class="t-ok">row = db.find(key_hash=hash)</span>
+
+<span class="t-prompt"># Storage (what's in DB):</span>
+<span class="t-key">key_hash:   sha256:e3b0c4…</span>
+<span class="t-key">key_prefix: sk_abc1</span>
+<span class="t-muted">Raw key: NEVER stored</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Your API Keys</h3>
+        <button class="btn-ghost btn-sm" onclick="loadApiKeys()">↺ Refresh</button>
+      </div>
+      <div id="keysList"><div class="empty">Login to manage API keys</div></div>
+    </div>
+  </div>
+
   <!-- ── NOTE APP ───────────────────────────────────────────── -->
   <div class="section" id="sec-app">
     <div class="page-header">
@@ -812,6 +1044,13 @@ button{
 
     <!-- Auth forms -->
     <div id="authForms">
+      <div class="alert info" style="margin-bottom:12px">💡 <strong>Demo users:</strong> Log in as alice, bob, charlie, or diana — useful for testing the IDOR lab too.</div>
+      <div class="demo-users" id="demoChips">
+        <span class="demo-chip" onclick="quickLogin('alice','Alice@1234')">👤 alice</span>
+        <span class="demo-chip" onclick="quickLogin('bob','Bob@1234')">👤 bob</span>
+        <span class="demo-chip" onclick="quickLogin('charlie','Charlie@1234')">👤 charlie</span>
+        <span class="demo-chip" onclick="quickLogin('diana','Diana@1234')">👤 diana</span>
+      </div>
       <div class="two-col">
         <div class="card" id="registerCard">
           <div class="card-header"><h3>Create Account</h3></div>
@@ -837,7 +1076,8 @@ button{
             </div>
             <div class="form-group">
               <label>Password</label>
-              <input type="password" id="loginPass" placeholder="Your password" autocomplete="current-password">
+              <input type="password" id="loginPass" placeholder="Your password" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter')doLogin()">
             </div>
             <button class="btn-primary" onclick="doLogin()">Login</button>
           </div>
@@ -850,21 +1090,52 @@ button{
       <div class="card">
         <div class="card-header">
           <h3>➕ New Note</h3>
-          <button class="btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-ghost btn-sm" onclick="showChangePassword()">🔒 Change Password</button>
+            <button class="btn-ghost btn-sm" onclick="doLogout()">Logout</button>
+          </div>
         </div>
         <div class="card-body">
           <div class="form-row">
-            <input type="text" id="itemTitle" placeholder="Title (required, max 200 chars)" maxlength="200">
-            <input type="text" id="itemBody" placeholder="Content (optional)" style="flex:2">
+            <input type="text" id="itemTitle" placeholder="Title (required, max 200 chars)" maxlength="200"
+              onkeydown="if(event.key==='Enter')createItem()">
+            <input type="text" id="itemBody" placeholder="Content (optional)" style="flex:2"
+              onkeydown="if(event.key==='Enter')createItem()">
             <button class="btn-primary" onclick="createItem()">Add</button>
           </div>
         </div>
       </div>
+
+      <!-- Change password (hidden by default) -->
+      <div class="card" id="changePwCard" style="display:none">
+        <div class="card-header">
+          <h3>🔒 Change Password</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('changePwCard').style.display='none'">✕</button>
+        </div>
+        <div class="card-body">
+          <div class="two-col">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="cpCurrent" placeholder="Your current password">
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="cpNew" placeholder="Min 8 chars, upper+lower+digit+special"
+                oninput="checkStrengthCp(this.value)"
+                onkeydown="if(event.key==='Enter')doChangePassword()">
+              <div class="strength-track" style="margin-top:5px"><div class="strength-fill" id="sfCp"></div></div>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="doChangePassword()">Update Password</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3>Your Notes</h3>
           <div class="form-row" style="margin:0;gap:6px">
-            <input type="text" id="searchQ" placeholder="Search…" style="width:160px">
+            <input type="text" id="searchQ" placeholder="Search…" style="width:160px"
+              onkeydown="if(event.key==='Enter')searchItems()">
             <button class="btn-ghost btn-sm" onclick="searchItems()">🔍</button>
             <button class="btn-ghost btn-sm" onclick="loadItems()">↺</button>
           </div>
@@ -941,6 +1212,7 @@ const sectionTitles = {
   home:'Dashboard', sqli:'SQL Injection Lab', xss:'XSS Lab',
   auth:'Authentication Security', headers:'Security Headers',
   csrf:'CSRF Protection', ratelimit:'Rate Limiting', idor:'User Profile IDOR',
+  pipeline:'CI/CD Pipeline', apikeys:'API Keys',
   app:'Note App', events:'Live Events',
 };
 
@@ -958,6 +1230,7 @@ function nav(id){
   if(id==='headers') loadHeaders();
   if(id==='events')  loadEvents();
   if(id==='csrf')    loadCsrfToken();
+  if(id==='apikeys') loadApiKeys();
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1014,7 +1287,7 @@ async function toggleSecureMode(){
         pill.className='mode-pill insecure';
         pill.textContent='⚠ INSECURE MODE';
       }
-      alert_(`✅ ${data.message}\n${data.status}`, 'ok');
+      alert_(`${data.message}`, 'success');
     } else {
       const errMsg = data?.error || `HTTP ${status}`;
       alert_(`❌ Failed to toggle SECURE_MODE\n${errMsg}`, 'error');
@@ -1266,37 +1539,39 @@ async function runIDOR(mode){
   
   if(mode==='attack'){
     let html = '';
-    if(data.vulnerable && data.users && data.users.length > 1){
-      html += termLine('t-warn','⚠ VULNERABLE — SQL Injection + IDOR!')
-        + termLine('t-warn','Returned '+data.users_returned+' user(s)');
-    } else if(data.users && data.users.length === 1){
-      html += termLine('t-warn','✓ Found 1 user');
+    const count = data.users_returned || (data.users||[]).length;
+    if(count > 1){
+      html += termLine('t-err','⚠ VULNERABLE — '+count+' user record(s) exposed!')
+        + termLine('t-warn','SQL injection bypassed the WHERE clause — returned ALL users');
+    } else if(count === 1){
+      html += termLine('t-warn','⚠ IDOR — Accessed another user\'s private profile!')
+        + termLine('t-muted','No SQLi needed — the endpoint has no authorization check');
     }
-    
-    if(data.sql) html += '\n'+termLine('t-sql','SQL: '+data.sql);
-    html += '\n'+termLine('t-muted','User profiles:');
-    
+
+    if(data.sql) html += '\n'+termLine('t-sql','SQL: '+data.sql)+'\n';
+
     if(data.users){
       data.users.forEach((u,i)=>{
-        html += '\n'+termLine('t-ok','[User '+i+']');
-        html += termLine('t-key','  ID: ') + '<span class="t-val">'+u.id+'</span><br>';
-        html += termLine('t-key','  Username: ') + '<span class="t-val">'+u.username+'</span><br>';
-        html += termLine('t-key','  Email: ') + '<span class="t-val">'+(u.email||'(not set)')+'</span><br>';
-        html += termLine('t-key','  Phone: ') + '<span class="t-val">'+(u.phone||'(not set)')+'</span><br>';
-        html += termLine('t-key','  Address: ') + '<span class="t-val">'+(u.address||'(not set)')+'</span><br>';
-        html += termLine('t-key','  Notes: ') + '<span class="t-val">'+(u.notes||'(not set)')+'</span><br>';
+        html += '\n'+termLine('t-key','─── Record '+(i+1)+' of '+count+' ───');
+        html += termLine('t-key','  ID:       ') + '<span class="t-val">'+esc(String(u.id))+'</span>\n';
+        html += termLine('t-key','  Username: ') + '<span class="t-val">'+esc(u.username)+'</span>\n';
+        html += termLine('t-key','  Email:    ') + '<span class="t-val">'+esc(u.email||'(not set)')+'</span>\n';
+        html += termLine('t-key','  Phone:    ') + '<span class="t-val">'+esc(u.phone||'(not set)')+'</span>\n';
+        html += termLine('t-key','  Address:  ') + '<span class="t-val">'+esc(u.address||'(not set)')+'</span>\n';
+        html += termLine('t-key','  Notes:    ') + '<span class="t-err">'+esc(u.notes||'(not set)')+'</span>\n';
       });
     }
     out.innerHTML = html;
   } else {
-    let html = termLine('t-ok','✓ SECURE — Your Profile')
-      + termLine('t-muted','Only your data (proper authorization):')
-      + termLine('t-key','  ID: ') + '<span class="t-val">'+data.id+'</span><br>'
-      + termLine('t-key','  Username: ') + '<span class="t-val">'+data.username+'</span><br>'
-      + termLine('t-key','  Email: ') + '<span class="t-val">'+(data.email||'(not set)')+'</span><br>'
-      + termLine('t-key','  Phone: ') + '<span class="t-val">'+(data.phone||'(not set)')+'</span><br>'
-      + termLine('t-key','  Address: ') + '<span class="t-val">'+(data.address||'(not set)')+'</span><br>'
-      + termLine('t-key','  Notes: ') + '<span class="t-val">'+(data.notes||'(not set)')+'</span><br>';
+    let html = termLine('t-ok','✓ SECURE — Your Profile Only')
+      + termLine('t-muted','user_id comes from session — cannot be forged:')
+      + '\n'
+      + termLine('t-key','  ID:       ') + '<span class="t-val">'+esc(String(data.id||''))+'</span>\n'
+      + termLine('t-key','  Username: ') + '<span class="t-val">'+esc(data.username||'')+'</span>\n'
+      + termLine('t-key','  Email:    ') + '<span class="t-val">'+esc(data.email||'(not set)')+'</span>\n'
+      + termLine('t-key','  Phone:    ') + '<span class="t-val">'+esc(data.phone||'(not set)')+'</span>\n'
+      + termLine('t-key','  Address:  ') + '<span class="t-val">'+esc(data.address||'(not set)')+'</span>\n'
+      + termLine('t-key','  Notes:    ') + '<span class="t-val">'+esc(data.notes||'(not set)')+'</span>\n';
     out.innerHTML = html;
   }
 }
@@ -1334,8 +1609,10 @@ async function doLogin(){
 async function doLogout(){
   await api('/auth/logout',{method:'POST'});
   S.user=null; S.csrf='';
+  if(_pollInterval){ clearInterval(_pollInterval); _pollInterval=null; }
   document.getElementById('authForms').style.display='';
   document.getElementById('appItems').style.display='none';
+  document.getElementById('changePwCard').style.display='none';
   document.getElementById('tbUser').innerHTML='<span>Not logged in</span>';
   document.getElementById('navAdmin').style.display='none';
   alert_('Logged out.','success');
@@ -1442,9 +1719,11 @@ async function loadEvents(){
     </div>`).join('');
 }
 
+let _pollInterval = null;
 function pollEvents(){
+  if(_pollInterval) return; // already polling
   loadEvents();
-  setInterval(()=>{ if(S.user) loadEvents(); }, 5000);
+  _pollInterval = setInterval(()=>{ if(S.user) loadEvents(); }, 5000);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1455,6 +1734,98 @@ function toggleEventPanel(){
   p.classList.toggle('open');
   S.newEventCount=0;
   document.getElementById('evBadge').style.display='none';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUICK LOGIN (demo users)
+═══════════════════════════════════════════════════════════ */
+async function quickLogin(username, password){
+  document.getElementById('loginUser').value = username;
+  document.getElementById('loginPass').value = password;
+  await doLogin();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHANGE PASSWORD
+═══════════════════════════════════════════════════════════ */
+function showChangePassword(){
+  const card = document.getElementById('changePwCard');
+  card.style.display = card.style.display==='none'?'':'none';
+  document.getElementById('cpCurrent').value='';
+  document.getElementById('cpNew').value='';
+  document.getElementById('sfCp').className='strength-fill';
+}
+
+function checkStrengthCp(pw){ const r=_sc(pw); const s=r.filter(Boolean).length; const f=document.getElementById('sfCp'); f.className='strength-fill '+(s<2?'w':s<3?'f':s<5?'g':'s'); }
+
+async function doChangePassword(){
+  const cur=document.getElementById('cpCurrent').value;
+  const nw=document.getElementById('cpNew').value;
+  if(!cur||!nw){alert_('Fill in both fields','warning');return;}
+  const {ok,data}=await api('/auth/change-password',{method:'POST',body:JSON.stringify({current_password:cur,new_password:nw})});
+  if(ok){
+    alert_('Password changed. Please log in again.','success');
+    document.getElementById('changePwCard').style.display='none';
+    await doLogout();
+  } else {
+    alert_(data.error||'Failed to change password','error');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   API KEYS
+═══════════════════════════════════════════════════════════ */
+async function createApiKey(){
+  if(!S.user){alert_('Login first','warning');return;}
+  const name=document.getElementById('keyName').value.trim()||'Unnamed key';
+  const {ok,data}=await api('/api-keys',{method:'POST',body:JSON.stringify({name})});
+  if(!ok){alert_(data.error||'Failed to create key','error');return;}
+  document.getElementById('keyName').value='';
+  document.getElementById('newKeyVal').textContent=data.key;
+  document.getElementById('newKeyBox').style.display='';
+  alert_('API key created — copy it now, it won\'t be shown again.','warning',8000);
+  loadApiKeys();
+}
+
+function copyKey(){
+  const val=document.getElementById('newKeyVal').textContent;
+  navigator.clipboard.writeText(val).then(()=>alert_('Copied to clipboard','success',2000));
+}
+
+async function loadApiKeys(){
+  const el=document.getElementById('keysList');
+  if(!S.user){el.innerHTML='<div class="empty">Login to manage API keys</div>';return;}
+  const {ok,data}=await api('/api-keys');
+  if(!ok){el.innerHTML=`<div class="empty">${esc(data.error||'Error')}</div>`;return;}
+  const keys=(data.api_keys||[]).filter(k=>k.is_active);
+  if(!keys.length){el.innerHTML='<div class="empty">No active API keys — create one above.</div>';return;}
+  el.innerHTML=keys.map(k=>`
+    <div class="key-row">
+      <div>
+        <div class="key-name">${esc(k.name||'Unnamed')}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+          <code class="key-prefix">${esc(k.key_prefix)}…</code>
+          <span class="key-date">Created ${new Date(k.created_at).toLocaleDateString()}</span>
+          ${k.last_used?`<span class="key-date">· Last used ${new Date(k.last_used).toLocaleDateString()}</span>`:''}
+        </div>
+      </div>
+      <button class="btn-danger btn-sm" onclick="revokeApiKey(${k.id})">Revoke</button>
+    </div>`).join('');
+}
+
+async function revokeApiKey(id){
+  if(!confirm('Revoke this API key?'))return;
+  const {ok}=await api(`/api-keys/${id}`,{method:'DELETE'});
+  if(ok){alert_('Key revoked','success');loadApiKeys();}
+  else alert_('Failed to revoke','error');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IDOR helpers
+═══════════════════════════════════════════════════════════ */
+function idorFire(payload){
+  document.getElementById('idorAttackPayload').value = payload;
+  runIDOR('attack');
 }
 
 /* ═══════════════════════════════════════════════════════════

@@ -46,14 +46,14 @@ def test_security_headers_present(client):
 # ---------------------------------------------------------------------------
 
 def test_register_success(client):
-    r = register(client, "alice", "Secure1!")
+    r = register(client, "newuser", "Secure1!")
     assert r.status_code == 201
     assert r.get_json()["ok"] is True
 
 
 def test_register_duplicate(client):
-    register(client, "alice", "Secure1!")
-    r = register(client, "alice", "Secure1!")
+    register(client, "newuser", "Secure1!")
+    r = register(client, "newuser", "Secure1!")
     assert r.status_code == 409
 
 

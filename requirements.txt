@@ -11,6 +11,3 @@ Flask-Limiter>=3.5.0
 
 # HTML sanitization
 bleach>=6.1.0
-
-# OTP / MFA support
-pyotp>=2.9.0
