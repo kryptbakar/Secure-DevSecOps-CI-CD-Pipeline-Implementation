@@ -2,10 +2,11 @@
 
 > **An interactive, full-stack security education platform** built for the course *Secure Software Design with Secure Coding Implementation*. Demonstrates real-world attack vectors and their defences through live, hands-on labs — not just slides.
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13+-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-black?logo=flask)
 ![Security](https://img.shields.io/badge/Security-OWASP%20Top%2010-red)
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-24-green?logo=node.js&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
