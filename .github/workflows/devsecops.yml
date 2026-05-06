@@ -78,21 +78,121 @@ jobs:
         run: pip install bandit==1.7.5
 
       - name: Run Bandit
-        # -r app/   : scan app/ recursively
-        # -ll       : report High severity only (fails the build)
-        # -ii       : report High confidence only
-        # --format json : machine-readable output saved as artifact
         run: |
-          bandit -r app/ -ll -ii --format json -o bandit-report.json || EXIT_CODE=$?
-          bandit -r app/ -ll -ii
+          # Full scan (all severities) → JSON for HTML report
+          bandit -r app/ -l -i --format json -o bandit-report.json || true
+          # Strict scan (HIGH/HIGH only) → CI gate
+          bandit -r app/ -ll -ii || EXIT_CODE=$?
           exit ${EXIT_CODE:-0}
+
+      - name: Generate Bandit HTML report
+        if: always()
+        run: |
+          python3 << 'PYEOF'
+          import json
+          from datetime import datetime
+
+          with open('bandit-report.json') as f:
+              data = json.load(f)
+
+          results = data.get('results', [])
+          metrics = data.get('metrics', {}).get('_totals', {})
+          generated = data.get('generated_at', datetime.now().isoformat())[:19].replace('T', ' ')
+
+          sev_counts = {s: sum(1 for r in results if r['issue_severity'] == s) for s in ('HIGH','MEDIUM','LOW')}
+          conf_counts = {c: sum(1 for r in results if r['issue_confidence'] == c) for c in ('HIGH','MEDIUM','LOW')}
+
+          SEV_COLOR  = {'HIGH': '#f85149', 'MEDIUM': '#fb8500', 'LOW': '#e3b341'}
+          CONF_COLOR = {'HIGH': '#58a6ff', 'MEDIUM': '#79c0ff', 'LOW': '#b3d9ff'}
+
+          def badge(text, color):
+              return (f'<span style="background:{color};color:#0d1117;padding:2px 9px;'
+                      f'border-radius:12px;font-size:.78em;font-weight:700">{text}</span>')
+
+          rows = ''
+          for r in results:
+              sev  = r['issue_severity']
+              conf = r['issue_confidence']
+              fname = r.get('filename','').replace('app/','').replace('app\\','')
+              cwe = r.get('issue_cwe', {})
+              cwe_link = (f'<a href="{cwe.get("link","")}" target="_blank" style="color:#58a6ff">'
+                          f'CWE-{cwe.get("id","")}</a>' if cwe else '-')
+              rows += f'''<tr>
+                <td>{badge(sev, SEV_COLOR.get(sev,"#6e7681"))}</td>
+                <td>{badge(conf, CONF_COLOR.get(conf,"#6e7681"))}</td>
+                <td><code class="tid">{r["test_id"]}</code><br><span class="dim">{r["test_name"]}</span></td>
+                <td><span class="file">{fname}</span><br><span class="dim">Line {r.get("line_number","")}</span></td>
+                <td>{r["issue_text"]}</td>
+                <td>{cwe_link}</td>
+              </tr>'''
+
+          if not rows:
+              rows = '<tr><td colspan="6" class="empty">&#10003; No issues found at this severity level</td></tr>'
+
+          html = f'''<!DOCTYPE html>
+          <html lang="en"><head><meta charset="utf-8">
+          <title>Bandit SAST Report</title>
+          <style>
+            *{{box-sizing:border-box;margin:0;padding:0}}
+            body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0d1117;color:#e6edf3;line-height:1.5}}
+            a{{color:#58a6ff;text-decoration:none}}a:hover{{text-decoration:underline}}
+            .header{{background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);padding:32px 40px;border-bottom:1px solid #30363d}}
+            .badge-tool{{display:inline-block;background:#1f6feb;color:#fff;font-size:.75em;padding:2px 10px;border-radius:20px;margin-bottom:8px;font-weight:600;letter-spacing:.5px}}
+            .header h1{{font-size:1.9em;color:#f0f6fc;margin-bottom:4px}}
+            .header p{{color:#8b949e;font-size:.9em}}
+            .container{{padding:32px 40px}}
+            .cards{{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap}}
+            .card{{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 24px;min-width:130px;text-align:center;flex:1}}
+            .card .num{{font-size:2.2em;font-weight:700;margin-bottom:4px}}
+            .card .lbl{{color:#8b949e;font-size:.8em;text-transform:uppercase;letter-spacing:.5px}}
+            .red{{color:#f85149}}.orange{{color:#fb8500}}.yellow{{color:#e3b341}}.blue{{color:#58a6ff}}.green{{color:#3fb950}}
+            .section-hdr{{font-size:1em;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #21262d}}
+            table{{width:100%;border-collapse:collapse;background:#161b22;border-radius:10px;overflow:hidden;border:1px solid #30363d}}
+            th{{background:#21262d;padding:10px 14px;text-align:left;font-size:.78em;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;font-weight:600}}
+            td{{padding:11px 14px;border-bottom:1px solid #21262d;vertical-align:top;font-size:.88em}}
+            tr:last-child td{{border-bottom:none}}
+            tr:hover td{{background:#1c2128}}
+            code{{background:#21262d;padding:2px 6px;border-radius:4px;font-size:.85em}}
+            code.tid{{color:#79c0ff}}
+            .file{{color:#e6edf3;font-weight:500}}
+            .dim{{color:#8b949e;font-size:.82em}}
+            .empty{{text-align:center;color:#3fb950;padding:28px;font-size:1em}}
+            .footer{{margin-top:32px;color:#8b949e;font-size:.8em;text-align:center;padding:16px}}
+          </style></head><body>
+          <div class="header">
+            <div class="badge-tool">SAST · Bandit</div>
+            <h1>Static Analysis Security Report</h1>
+            <p>Scanned: <strong>app/</strong> &nbsp;·&nbsp; Generated: {generated} &nbsp;·&nbsp; Lines of code: {metrics.get("loc",0):,}</p>
+          </div>
+          <div class="container">
+            <div class="cards">
+              <div class="card"><div class="num blue">{len(results)}</div><div class="lbl">Total Issues</div></div>
+              <div class="card"><div class="num red">{sev_counts["HIGH"]}</div><div class="lbl">High Severity</div></div>
+              <div class="card"><div class="num orange">{sev_counts["MEDIUM"]}</div><div class="lbl">Medium Severity</div></div>
+              <div class="card"><div class="num yellow">{sev_counts["LOW"]}</div><div class="lbl">Low Severity</div></div>
+              <div class="card"><div class="num blue">{conf_counts["HIGH"]}</div><div class="lbl">High Confidence</div></div>
+            </div>
+            <p class="section-hdr">Findings</p>
+            <table>
+              <thead><tr><th>Severity</th><th>Confidence</th><th>Test</th><th>Location</th><th>Description</th><th>CWE</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            <div class="footer">Generated by Bandit · DevSecOps CI/CD Pipeline</div>
+          </div></body></html>'''
+
+          with open('bandit-report.html', 'w') as f:
+              f.write(html)
+          print(f"Generated bandit-report.html — {len(results)} findings")
+          PYEOF
 
       - name: Upload Bandit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bandit-report
-          path: bandit-report.json
+          path: |
+            bandit-report.json
+            bandit-report.html
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 4. SCA — Dependency Scanning (pip-audit) + Auto-Remediation via PR
@@ -132,12 +232,119 @@ jobs:
             echo "vulns_found=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Generate pip-audit HTML report
+        if: always()
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+          from datetime import datetime
+
+          path = 'audit_results.json'
+          if not os.path.exists(path) or os.path.getsize(path) == 0:
+              data = []
+          else:
+              with open(path) as f:
+                  data = json.load(f)
+
+          # pip-audit JSON: list of {name, version, vulns:[...]}
+          packages = data if isinstance(data, list) else []
+          total_pkgs = len(packages)
+          vulnerable = [p for p in packages if p.get('vulns')]
+          safe_pkgs  = total_pkgs - len(vulnerable)
+          total_vulns = sum(len(p['vulns']) for p in vulnerable)
+          generated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+          rows = ''
+          for pkg in vulnerable:
+              for i, vuln in enumerate(pkg['vulns']):
+                  fix = ', '.join(vuln.get('fix_versions', [])) or '<span style="color:#f85149">No fix available</span>'
+                  aliases = ', '.join(vuln.get('aliases', [])) or '-'
+                  desc = vuln.get('description', '')
+                  desc_short = (desc[:220] + '…') if len(desc) > 220 else desc
+                  span = len(pkg['vulns'])
+                  pkg_cell = (f'<td rowspan="{span}" style="border-right:1px solid #30363d;vertical-align:middle">'
+                              f'<strong>{pkg["name"]}</strong><br>'
+                              f'<code style="color:#8b949e">{pkg["version"]}</code></td>') if i == 0 else ''
+                  rows += f'''<tr>
+                    {pkg_cell}
+                    <td><code style="color:#f85149">{vuln["id"]}</code></td>
+                    <td><span style="color:#8b949e;font-size:.82em">{aliases}</span></td>
+                    <td><code style="color:#3fb950">{fix}</code></td>
+                    <td style="font-size:.85em;color:#8b949e">{desc_short}</td>
+                  </tr>'''
+
+          if not rows:
+              rows = '<tr><td colspan="5" class="empty">&#10003; No vulnerabilities found</td></tr>'
+
+          status_color = '#f85149' if total_vulns else '#3fb950'
+          status_text  = f'{total_vulns} vulnerabilit{"y" if total_vulns==1 else "ies"} found' if total_vulns else 'Clean — no vulnerabilities'
+
+          html = f'''<!DOCTYPE html>
+          <html lang="en"><head><meta charset="utf-8">
+          <title>pip-audit SCA Report</title>
+          <style>
+            *{{box-sizing:border-box;margin:0;padding:0}}
+            body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0d1117;color:#e6edf3;line-height:1.5}}
+            .header{{background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);padding:32px 40px;border-bottom:1px solid #30363d}}
+            .badge-tool{{display:inline-block;background:#388bfd;color:#fff;font-size:.75em;padding:2px 10px;border-radius:20px;margin-bottom:8px;font-weight:600;letter-spacing:.5px}}
+            .header h1{{font-size:1.9em;color:#f0f6fc;margin-bottom:4px}}
+            .header p{{color:#8b949e;font-size:.9em}}
+            .container{{padding:32px 40px}}
+            .status-bar{{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px 24px;margin-bottom:24px;display:flex;align-items:center;gap:12px}}
+            .status-dot{{width:12px;height:12px;border-radius:50%;background:{status_color};flex-shrink:0}}
+            .status-text{{font-weight:600;color:{status_color}}}
+            .cards{{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap}}
+            .card{{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 24px;min-width:140px;text-align:center;flex:1}}
+            .card .num{{font-size:2.2em;font-weight:700;margin-bottom:4px}}
+            .card .lbl{{color:#8b949e;font-size:.8em;text-transform:uppercase;letter-spacing:.5px}}
+            .red{{color:#f85149}}.green{{color:#3fb950}}.blue{{color:#58a6ff}}.orange{{color:#fb8500}}
+            .section-hdr{{font-size:1em;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #21262d}}
+            table{{width:100%;border-collapse:collapse;background:#161b22;border-radius:10px;overflow:hidden;border:1px solid #30363d}}
+            th{{background:#21262d;padding:10px 14px;text-align:left;font-size:.78em;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;font-weight:600}}
+            td{{padding:11px 14px;border-bottom:1px solid #21262d;vertical-align:top;font-size:.88em}}
+            tr:last-child td{{border-bottom:none}}
+            tr:hover td{{background:#1c2128}}
+            code{{background:#21262d;padding:2px 6px;border-radius:4px;font-size:.85em}}
+            .empty{{text-align:center;color:#3fb950;padding:28px;font-size:1em}}
+            .footer{{margin-top:32px;color:#8b949e;font-size:.8em;text-align:center;padding:16px}}
+          </style></head><body>
+          <div class="header">
+            <div class="badge-tool">SCA · pip-audit</div>
+            <h1>Software Composition Analysis Report</h1>
+            <p>Dependency vulnerability scan &nbsp;·&nbsp; Generated: {generated}</p>
+          </div>
+          <div class="container">
+            <div class="status-bar">
+              <div class="status-dot"></div>
+              <span class="status-text">{status_text}</span>
+            </div>
+            <div class="cards">
+              <div class="card"><div class="num blue">{total_pkgs}</div><div class="lbl">Packages Scanned</div></div>
+              <div class="card"><div class="num {"red" if vulnerable else "green"}">{len(vulnerable)}</div><div class="lbl">Vulnerable Packages</div></div>
+              <div class="card"><div class="num {"red" if total_vulns else "green"}">{total_vulns}</div><div class="lbl">Total CVEs</div></div>
+              <div class="card"><div class="num green">{safe_pkgs}</div><div class="lbl">Clean Packages</div></div>
+            </div>
+            <p class="section-hdr">Vulnerabilities</p>
+            <table>
+              <thead><tr><th>Package</th><th>CVE / ID</th><th>Aliases</th><th>Fix Version</th><th>Description</th></tr></thead>
+              <tbody>{rows}</tbody>
+            </table>
+            <div class="footer">Generated by pip-audit · DevSecOps CI/CD Pipeline</div>
+          </div></body></html>'''
+
+          with open('pip-audit-report.html', 'w') as f:
+              f.write(html)
+          print(f"Generated pip-audit-report.html — {total_vulns} CVEs across {len(vulnerable)} packages")
+          PYEOF
+
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pip-audit-report
-          path: audit_results.json
+          path: |
+            audit_results.json
+            pip-audit-report.html
 
       - name: Auto-remediate and open PR
         if: steps.audit.outputs.vulns_found == 'true' && github.event_name == 'push'
