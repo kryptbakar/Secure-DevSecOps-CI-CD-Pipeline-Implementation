@@ -216,10 +216,13 @@ jobs:
 
       - name: Run OWASP ZAP scan
         run: |
+          # Create output directory
+          mkdir -p /tmp/zap-reports
+
           # Use ZAP Docker container to scan the app
           docker run --rm \
             --network host \
-            -v $(pwd):/zap/wrk \
+            -v /tmp/zap-reports:/zap/wrk \
             owasp/zap2docker-baseline:latest \
             zap-baseline.py \
               -t http://localhost:5000 \
@@ -227,23 +230,30 @@ jobs:
               -J /zap/wrk/report.json \
               -I || true  # Don't fail on ZAP issues
 
+          # Copy reports to workspace
+          cp -v /tmp/zap-reports/report_html.html . || echo "HTML report not found"
+          cp -v /tmp/zap-reports/report.json . || echo "JSON report not found"
+
       - name: Check generated reports
         if: always()
         run: |
           echo "=== Checking for generated report files ==="
           ls -lah report_html.html report.json 2>/dev/null || echo "Report files not found"
           echo ""
-          echo "=== All files in workspace ==="
-          find . -maxdepth 2 -type f -name "*.html" -o -name "*report*" | head -20
+          echo "=== All HTML files in workspace ==="
+          find . -maxdepth 2 -type f -name "*.html" 2>/dev/null | head -20
           echo ""
-          echo "=== Content of report_html.html (first 100 bytes) ==="
-          head -c 100 report_html.html 2>/dev/null || echo "File not accessible"
+          echo "=== Workspace contents ==="
+          ls -la /tmp/zap-reports/ 2>/dev/null || echo "ZAP output dir not found"
+          echo ""
+          echo "=== Current directory ==="
+          pwd
+          ls -la
 
       - name: Upload ZAP report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zap-baseline-report
-          path: |
-            report_html.html
-            baseline/report_html.html
+          path: report_html.html
+          if-no-files-found: warn
