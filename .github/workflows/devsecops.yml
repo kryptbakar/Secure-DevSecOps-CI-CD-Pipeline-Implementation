@@ -207,30 +207,37 @@ jobs:
           for i in {1..30}; do
             if curl -s http://localhost:5000/health > /dev/null 2>&1; then
               echo "✓ App is ready!"
-              curl -s http://localhost:5000/health | head -20
+              curl -s http://localhost:5000/health | jq . || curl -s http://localhost:5000/health
               break
             fi
             echo "Waiting for app... attempt $i/30"
             sleep 1
           done
 
-      - name: OWASP ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: "http://localhost:5000"
-          rules_file_name: ".zap/rules.tsv"
-          fail_action: false
-          artifact_name: "zap-baseline-report"
+      - name: Run OWASP ZAP scan
+        run: |
+          # Use ZAP Docker container to scan the app
+          docker run --rm \
+            --network host \
+            -v $(pwd):/zap/wrk \
+            owasp/zap2docker-baseline:latest \
+            zap-baseline.py \
+              -t http://localhost:5000 \
+              -r /zap/wrk/report_html.html \
+              -J /zap/wrk/report.json \
+              -I || true  # Don't fail on ZAP issues
 
-      - name: Check for ZAP report
+      - name: Check generated reports
         if: always()
         run: |
-          echo "Looking for ZAP report files..."
-          find . -name "*.html" -type f 2>/dev/null | head -20
-          find . -name "*report*" -type f 2>/dev/null | head -20
-          ls -la report_html.html 2>/dev/null || echo "report_html.html not found"
-          pwd
-          ls -la .
+          echo "=== Checking for generated report files ==="
+          ls -lah report_html.html report.json 2>/dev/null || echo "Report files not found"
+          echo ""
+          echo "=== All files in workspace ==="
+          find . -maxdepth 2 -type f -name "*.html" -o -name "*report*" | head -20
+          echo ""
+          echo "=== Content of report_html.html (first 100 bytes) ==="
+          head -c 100 report_html.html 2>/dev/null || echo "File not accessible"
 
       - name: Upload ZAP report
         if: always()
