@@ -246,10 +246,19 @@ jobs:
               with open(path) as f:
                   data = json.load(f)
 
-          # pip-audit JSON: list of {name, version, vulns:[...]}
-          packages = data if isinstance(data, list) else []
-          total_pkgs = len(packages)
-          vulnerable = [p for p in packages if p.get('vulns')]
+          # pip-audit only outputs vulnerable packages; count total from requirements.txt
+          try:
+              with open('requirements.txt') as rf:
+                  total_pkgs = sum(1 for l in rf if l.strip() and not l.startswith('#') and not l.startswith('-'))
+          except Exception:
+              total_pkgs = 0
+
+          # Handle both list format and {dependencies:[...]} format
+          if isinstance(data, list):
+              vulnerable = [p for p in data if p.get('vulns')]
+          else:
+              vulnerable = [p for p in data.get('dependencies', []) if p.get('vulns')]
+
           safe_pkgs  = total_pkgs - len(vulnerable)
           total_vulns = sum(len(p['vulns']) for p in vulnerable)
           generated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
