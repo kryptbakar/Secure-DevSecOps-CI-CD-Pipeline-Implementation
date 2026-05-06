@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Bandit SAST Report</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0d1117;color:#e6edf3;line-height:1.5}
+  a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}
+  .header{background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);padding:32px 40px;border-bottom:1px solid #30363d}
+  .badge-tool{display:inline-block;background:#1f6feb;color:#fff;font-size:.75em;padding:2px 10px;border-radius:20px;margin-bottom:8px;font-weight:600;letter-spacing:.5px}
+  .header h1{font-size:1.9em;color:#f0f6fc;margin-bottom:4px}
+  .header p{color:#8b949e;font-size:.9em}
+  .container{padding:32px 40px}
+  .cards{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 24px;min-width:130px;text-align:center;flex:1}
+  .card .num{font-size:2.2em;font-weight:700;margin-bottom:4px}
+  .card .lbl{color:#8b949e;font-size:.8em;text-transform:uppercase;letter-spacing:.5px}
+  .red{color:#f85149}.orange{color:#fb8500}.yellow{color:#e3b341}.blue{color:#58a6ff}.green{color:#3fb950}
+  .section-hdr{font-size:1em;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #21262d}
+  table{width:100%;border-collapse:collapse;background:#161b22;border-radius:10px;overflow:hidden;border:1px solid #30363d}
+  th{background:#21262d;padding:10px 14px;text-align:left;font-size:.78em;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  td{padding:11px 14px;border-bottom:1px solid #21262d;vertical-align:top;font-size:.88em}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#1c2128}
+  code{background:#21262d;padding:2px 6px;border-radius:4px;font-size:.85em}
+  code.tid{color:#79c0ff}
+  .file{color:#e6edf3;font-weight:500}
+  .dim{color:#8b949e;font-size:.82em}
+  .empty{text-align:center;color:#3fb950;padding:28px;font-size:1em}
+  .footer{margin-top:32px;color:#8b949e;font-size:.8em;text-align:center;padding:16px}
+</style></head><body>
+<div class="header">
+  <div class="badge-tool">SAST · Bandit</div>
+  <h1>Static Analysis Security Report</h1>
+  <p>Scanned: <strong>app/</strong> &nbsp;·&nbsp; Generated: 2026-05-06 22:46:15 &nbsp;·&nbsp; Lines of code: 1,398</p>
+</div>
+<div class="container">
+  <div class="cards">
+    <div class="card"><div class="num blue">5</div><div class="lbl">Total Issues</div></div>
+    <div class="card"><div class="num red">0</div><div class="lbl">High Severity</div></div>
+    <div class="card"><div class="num orange">3</div><div class="lbl">Medium Severity</div></div>
+    <div class="card"><div class="num yellow">2</div><div class="lbl">Low Severity</div></div>
+    <div class="card"><div class="num blue">1</div><div class="lbl">High Confidence</div></div>
+  </div>
+  <p class="section-hdr">Findings</p>
+  <table>
+    <thead><tr><th>Severity</th><th>Confidence</th><th>Test</th><th>Location</th><th>Description</th><th>CWE</th></tr></thead>
+    <tbody><tr>
+      <td><span style="background:#e3b341;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">LOW</span></td>
+      <td><span style="background:#58a6ff;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">HIGH</span></td>
+      <td><code class="tid">B110</code><br><span class="dim">try_except_pass</span></td>
+      <td><span class="file">audit.py</span><br><span class="dim">Line 36</span></td>
+      <td>Try, Except, Pass detected.</td>
+      <td><a href="https://cwe.mitre.org/data/definitions/703.html" target="_blank" style="color:#58a6ff">CWE-703</a></td>
+    </tr><tr>
+      <td><span style="background:#e3b341;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">LOW</span></td>
+      <td><span style="background:#79c0ff;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">MEDIUM</span></td>
+      <td><code class="tid">B105</code><br><span class="dim">hardcoded_password_string</span></td>
+      <td><span class="file">config.py</span><br><span class="dim">Line 15</span></td>
+      <td>Possible hardcoded password: 'dev-only-insecure-default-DO-NOT-USE-IN-PRODUCTION'</td>
+      <td><a href="https://cwe.mitre.org/data/definitions/259.html" target="_blank" style="color:#58a6ff">CWE-259</a></td>
+    </tr><tr>
+      <td><span style="background:#fb8500;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">MEDIUM</span></td>
+      <td><span style="background:#b3d9ff;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">LOW</span></td>
+      <td><code class="tid">B608</code><br><span class="dim">hardcoded_sql_expressions</span></td>
+      <td><span class="file">items.py</span><br><span class="dim">Line 149</span></td>
+      <td>Possible SQL injection vector through string-based query construction.</td>
+      <td><a href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" style="color:#58a6ff">CWE-89</a></td>
+    </tr><tr>
+      <td><span style="background:#fb8500;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">MEDIUM</span></td>
+      <td><span style="background:#b3d9ff;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">LOW</span></td>
+      <td><code class="tid">B608</code><br><span class="dim">hardcoded_sql_expressions</span></td>
+      <td><span class="file">lab.py</span><br><span class="dim">Line 107</span></td>
+      <td>Possible SQL injection vector through string-based query construction.</td>
+      <td><a href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" style="color:#58a6ff">CWE-89</a></td>
+    </tr><tr>
+      <td><span style="background:#fb8500;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">MEDIUM</span></td>
+      <td><span style="background:#b3d9ff;color:#0d1117;padding:2px 9px;border-radius:12px;font-size:.78em;font-weight:700">LOW</span></td>
+      <td><code class="tid">B608</code><br><span class="dim">hardcoded_sql_expressions</span></td>
+      <td><span class="file">profiles.py</span><br><span class="dim">Line 43</span></td>
+      <td>Possible SQL injection vector through string-based query construction.</td>
+      <td><a href="https://cwe.mitre.org/data/definitions/89.html" target="_blank" style="color:#58a6ff">CWE-89</a></td>
+    </tr></tbody>
+  </table>
+  <div class="footer">Generated by Bandit · DevSecOps CI/CD Pipeline</div>
+</div></body></html>
