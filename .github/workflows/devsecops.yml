@@ -199,17 +199,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Start Flask app in background
           SECRET_KEY="dast-scan-secret" SECURE_MODE="true" \
-            flask --app "app.main:create_app" run --host 0.0.0.0 --port 5000 > app.log 2>&1 &
-          APP_PID=$!
-          # Wait for the server to be ready with more retries
+            python -m flask --app "app.main:create_app" run --host 0.0.0.0 --port 5000 > app.log 2>&1 &
+          sleep 3
+          # Verify app is responding
           for i in {1..30}; do
-            if curl -f http://localhost:5000/health; then
-              echo "App is ready!"
+            if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+              echo "✓ App is ready!"
+              curl -s http://localhost:5000/health | head -20
               break
             fi
-            echo "Waiting for app... attempt $i"
-            sleep 2
+            echo "Waiting for app... attempt $i/30"
+            sleep 1
           done
 
       - name: OWASP ZAP baseline scan
@@ -219,11 +221,22 @@ jobs:
           rules_file_name: ".zap/rules.tsv"
           fail_action: false
           artifact_name: "zap-baseline-report"
-          cmd_options: "-a"  # Enable all passive rules
+
+      - name: Check for ZAP report
+        if: always()
+        run: |
+          echo "Looking for ZAP report files..."
+          find . -name "*.html" -type f 2>/dev/null | head -20
+          find . -name "*report*" -type f 2>/dev/null | head -20
+          ls -la report_html.html 2>/dev/null || echo "report_html.html not found"
+          pwd
+          ls -la .
 
       - name: Upload ZAP report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zap-baseline-report
-          path: report_html.html
+          path: |
+            report_html.html
+            baseline/report_html.html
