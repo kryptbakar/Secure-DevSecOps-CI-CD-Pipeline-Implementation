@@ -217,15 +217,16 @@ jobs:
             exit 1
           fi
 
-          # Verify app is responding with detailed output
+          # Verify app is responding
           echo "=== Testing app connectivity ==="
           for i in {1..30}; do
-            if curl -v http://localhost:5000/health 2>&1 | grep -q "200\|ok"; then
-              echo "✓ App is responding!"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "✓ App is responding (HTTP $STATUS)!"
               curl -s http://localhost:5000/health | head -5
               break
             fi
-            echo "Attempt $i/30..."
+            echo "Attempt $i/30 (HTTP $STATUS)..."
             sleep 2
           done
 
@@ -236,41 +237,34 @@ jobs:
       - name: Run OWASP ZAP scan
         run: |
           mkdir -p /tmp/zap-reports
+          chmod 777 /tmp/zap-reports
 
           # Verify app is still running before ZAP scan
           echo "=== Verifying app before ZAP scan ==="
           curl -s http://localhost:5000/health || echo "App not responding!"
 
-          # Run ZAP full scan with active scanning (more thorough)
+          # Run ZAP full scan with active scanning
+          # Reports are relative to /zap/wrk inside the container
           echo "=== Starting full OWASP ZAP active scan ==="
           docker run --rm \
             --network host \
-            -v /tmp/zap-reports:/zap/wrk \
-            owasp/zap2docker-full:latest \
+            -v /tmp/zap-reports:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
             zap-full-scan.py \
               -t http://localhost:5000 \
-              -r /zap/wrk/report_html.html \
-              -J /zap/wrk/report.json \
-              -x /zap/wrk/report.xml \
-              -a -d -m 30 || true
+              -r report_html.html \
+              -J report.json \
+              -x report.xml \
+              -a -d -m 2 || true
 
           # Check what was generated
           echo "=== ZAP output directory ==="
           ls -lah /tmp/zap-reports/
 
           # Copy reports to workspace
-          if [ -f /tmp/zap-reports/report_html.html ]; then
-            cp /tmp/zap-reports/report_html.html .
-            echo "✓ HTML report copied"
-          else
-            echo "⚠ HTML report not found, creating minimal report"
-            echo "<html><body><h1>ZAP Scan Report</h1><p>Scan completed on $(date)</p></body></html>" > report_html.html
-          fi
-
-          if [ -f /tmp/zap-reports/report.json ]; then
-            cp /tmp/zap-reports/report.json .
-            echo "✓ JSON report copied"
-          fi
+          cp /tmp/zap-reports/report_html.html . 2>/dev/null && echo "✓ HTML report copied" || echo "⚠ HTML report missing"
+          cp /tmp/zap-reports/report.json .      2>/dev/null && echo "✓ JSON report copied" || echo "⚠ JSON report missing"
+          cp /tmp/zap-reports/report.xml .       2>/dev/null && echo "✓ XML report copied"  || echo "⚠ XML report missing"
 
       - name: Check generated reports
         if: always()
