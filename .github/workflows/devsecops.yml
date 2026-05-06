@@ -239,19 +239,20 @@ jobs:
 
           # Verify app is still running before ZAP scan
           echo "=== Verifying app before ZAP scan ==="
-          curl -v http://localhost:5000/health || echo "App not responding!"
+          curl -s http://localhost:5000/health || echo "App not responding!"
 
-          # Run ZAP scan with verbose output
-          echo "=== Starting ZAP scan ==="
+          # Run ZAP full scan with active scanning (more thorough)
+          echo "=== Starting full OWASP ZAP active scan ==="
           docker run --rm \
             --network host \
             -v /tmp/zap-reports:/zap/wrk \
-            owasp/zap2docker-baseline:latest \
-            zap-baseline.py \
+            owasp/zap2docker-full:latest \
+            zap-full-scan.py \
               -t http://localhost:5000 \
               -r /zap/wrk/report_html.html \
               -J /zap/wrk/report.json \
-              -v || true
+              -x /zap/wrk/report.xml \
+              -a -d -m 30 || true
 
           # Check what was generated
           echo "=== ZAP output directory ==="
@@ -287,6 +288,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zap-baseline-report
-          path: report_html.html
+          name: zap-full-scan-report
+          path: |
+            report_html.html
+            report.json
+            report.xml
           if-no-files-found: warn
