@@ -1,5 +1,8 @@
 # AUI Secure — Secure Coding Demonstration Platform
 
+## Project Description
+DevSecOps CI/CD pipeline with integrated security gates across three deliverable phases. Includes GitHub Actions workflows, pre-commit hooks, and automated remediation scripts.
+
 > **An interactive, full-stack security education platform** built for the course *Secure Software Design with Secure Coding Implementation*. Demonstrates real-world attack vectors and their defences through live, hands-on labs — not just slides.
 
 ![Python](https://img.shields.io/badge/Python-3.13+-blue?logo=python&logoColor=white)
