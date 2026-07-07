@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AUI Secure — DevSecOps CI/CD Pipeline</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --bg-alt: #ffffff;
+    --text: #10141c;
+    --text-dim: #4a5568;
+    --accent: #0e7c66;
+    --accent2: #1f6feb;
+    --border: #d7dce2;
+    --card-bg: #ffffff;
+    --mono-bg: #eef1f5;
+    --tag-bg: #e7ebf0;
+    --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0e14;
+      --bg-alt: #10151d;
+      --text: #e6edf3;
+      --text-dim: #9aa7b5;
+      --accent: #2ee6a8;
+      --accent2: #58a6ff;
+      --border: #232b36;
+      --card-bg: #10151d;
+      --mono-bg: #0d1117;
+      --tag-bg: #182030;
+      --danger: #ff6b6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    scroll-behavior: smooth;
+  }
+  body {
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-attachment: fixed;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  a { color: var(--accent2); }
+
+  header.hero {
+    padding: 96px 24px 64px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-alt), transparent);
+  }
+  .prompt {
+    color: var(--accent);
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 18px;
+  }
+  h1.title {
+    font-size: clamp(1.9rem, 5vw, 3.2rem);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  h1.title span { color: var(--accent); }
+  .tagline {
+    color: var(--text-dim);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 28px;
+  }
+  .badge {
+    font-size: 0.72rem;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    background: var(--tag-bg);
+  }
+  .cta-row {
+    margin-top: 32px;
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-block;
+    padding: 11px 22px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+  }
+  .btn.primary {
+    background: var(--accent);
+    color: #05140f;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn.secondary { color: var(--text); }
+
+  section {
+    padding: 56px 0 0;
+  }
+  .section-label {
+    color: var(--accent);
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-size: 1.5rem;
+    margin: 0 0 18px;
+    color: var(--text);
+  }
+  p.lead {
+    color: var(--text-dim);
+    line-height: 1.75;
+    max-width: 760px;
+    font-size: 0.98rem;
+  }
+
+  .pipeline {
+    background: var(--mono-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.9;
+    color: var(--text-dim);
+  }
+  .pipeline pre {
+    margin: 0;
+    white-space: pre;
+  }
+  .pipeline .stage-num { color: var(--accent); }
+  .pipeline .stage-name { color: var(--text); font-weight: 600; }
+
+  ul.highlights {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0 0;
+    display: grid;
+    gap: 10px;
+  }
+  ul.highlights li {
+    padding-left: 24px;
+    position: relative;
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+  ul.highlights li::before {
+    content: "▹";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+  ul.highlights strong { color: var(--text); }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .tag {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+  }
+
+  .deliverables {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .deliverable-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    text-decoration: none;
+    display: block;
+  }
+  .deliverable-card:hover { border-color: var(--accent); }
+  .deliverable-card h3 {
+    margin: 0 0 6px;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  .deliverable-card span.arrow { color: var(--accent); }
+  .deliverable-card p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+
+  footer {
+    margin-top: 72px;
+    border-top: 1px solid var(--border);
+    padding-top: 28px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+  footer a { color: var(--accent2); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="prompt">$ git push origin main</div>
+  <h1 class="title">AUI Secure<span>_</span></h1>
+  <p class="tagline">
+    A dual-layer DevSecOps platform: a hands-on secure-coding lab wrapped in a
+    5-stage CI/CD security gauntlet that scans, tests, and auto-remediates every push.
+  </p>
+  <div class="badges">
+    <span class="badge">Python 3.13+</span>
+    <span class="badge">Flask 3.0</span>
+    <span class="badge">OWASP Top 10</span>
+    <span class="badge">GitHub Actions</span>
+    <span class="badge">MIT License</span>
+  </div>
+  <div class="cta-row">
+    <a class="btn primary" href="https://github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation">View Repository</a>
+    <a class="btn secondary" href="#pipeline">See the Pipeline</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section id="about">
+    <div class="section-label">// about</div>
+    <h2>What is this?</h2>
+    <p class="lead">
+      AUI Secure pairs a fully-functional Flask security lab (SQL injection, XSS,
+      password hashing, CSRF, rate limiting, and more — attack vs. defence, side by side)
+      with an automated DevSecOps pipeline that guards the codebase itself. Every push
+      runs through secret scanning, static analysis, dependency auditing with automatic
+      remediation, and a dynamic scan against the live app. Pre-commit hooks mirror the
+      same checks locally, so vulnerabilities are caught before they ever reach GitHub.
+    </p>
+  </section>
+
+  <section id="pipeline">
+    <div class="section-label">// pipeline</div>
+    <h2>5-stage security gauntlet</h2>
+    <div class="pipeline">
+<pre><span class="stage-num">Stage 1</span>  <span class="stage-name">Build &amp; Tests</span>     pytest — functional + security test suite
+<span class="stage-num">Stage 2</span>  <span class="stage-name">Secret Scanning</span>   gitleaks — blocks hardcoded secrets
+<span class="stage-num">Stage 3</span>  <span class="stage-name">SAST</span>              bandit — static code security analysis
+<span class="stage-num">Stage 4</span>  <span class="stage-name">SCA + Auto-fix</span>    pip-audit → remediate.py → opens PR
+<span class="stage-num">Stage 5</span>  <span class="stage-name">DAST</span> (push only)   OWASP ZAP baseline scan vs. live app</pre>
+    </div>
+
+    <ul class="highlights">
+      <li><strong>Auto-remediation</strong> — when pip-audit finds a vulnerable dependency, <code>remediate.py</code> patches requirements.txt and opens a pull request automatically.</li>
+      <li><strong>Pre-commit parity</strong> — black, bandit, pip-audit, gitleaks, and file-hygiene checks run locally before a commit ever reaches GitHub.</li>
+      <li><strong>Dual-endpoint labs</strong> — every vulnerability class (SQLi, XSS, CSRF, lockout, headers) ships a vulnerable and a hardened endpoint for live comparison.</li>
+      <li><strong>SECURE_MODE gating</strong> — insecure demo endpoints stay server-side gated, so the same codebase is both a teaching tool and production-safe.</li>
+      <li><strong>Full audit trail</strong> — every login, query, and API call is logged and streamed to a live events feed.</li>
+    </ul>
+  </section>
+
+  <section id="stack">
+    <div class="section-label">// tech stack</div>
+    <h2>Built with</h2>
+    <div class="tags">
+      <span class="tag">Python</span>
+      <span class="tag">Flask</span>
+      <span class="tag">SQLite</span>
+      <span class="tag">GitHub Actions</span>
+      <span class="tag">pre-commit</span>
+      <span class="tag">Bandit</span>
+      <span class="tag">pip-audit</span>
+      <span class="tag">gitleaks</span>
+      <span class="tag">OWASP ZAP</span>
+      <span class="tag">pytest</span>
+      <span class="tag">Vanilla JS</span>
+      <span class="tag">werkzeug scrypt</span>
+    </div>
+  </section>
+
+  <section id="deliverables">
+    <div class="section-label">// deliverables</div>
+    <h2>Coursework deliverables</h2>
+    <p class="lead">Three phased deliverables documenting design, implementation, and pipeline hardening.</p>
+    <div class="deliverables">
+      <a class="deliverable-card" href="https://github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation/tree/main/deliverable%201">
+        <h3>Deliverable 1 <span class="arrow">→</span></h3>
+        <p>Initial design and threat modelling artefacts.</p>
+      </a>
+      <a class="deliverable-card" href="https://github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation/tree/main/deliverable%202">
+        <h3>Deliverable 2 <span class="arrow">→</span></h3>
+        <p>Implementation of secure/insecure lab endpoints.</p>
+      </a>
+      <a class="deliverable-card" href="https://github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation/tree/main/deliverable%203">
+        <h3>Deliverable 3 <span class="arrow">→</span></h3>
+        <p>CI/CD pipeline integration and reporting.</p>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation">github.com/kryptbakar/Secure-DevSecOps-CI-CD-Pipeline-Implementation</a>
+    </p>
+    <p>MIT Licensed · Built for Secure Software Design with Secure Coding Implementation</p>
+  </footer>
+
+</div>
+</body>
+</html>
